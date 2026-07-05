@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Environment
+.env
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# CV Models
+src/detective_ai/cv/models/*.pt
+src/detective_ai/cv/models/*.pth
+*.onnx
+
+# Data
+benchmarks/scenarios/*/camera_feeds/
+benchmarks/results/
+data/
+*.db
+
+# Test caches
+.pytest_cache/
+
+# MLflow
+mlruns/
+
+# Docker
+docker-compose.override.yml
+
+# OS
+.DS_Store
+Thumbs.db

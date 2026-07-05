@@ -1,0 +1,579 @@
+{
+  "id": "scenario_07",
+  "title": "After-Hours Building Intrusion \u2014 Case 8",
+  "description": "Motion sensors triggered after business hours. Identify the intruder and their entry/exit path.",
+  "scenario_type": "after_hours_intrusion",
+  "topology": {
+    "cameras": [
+      {
+        "id": "cam_entrance",
+        "location": "Main Entrance",
+        "position": [
+          0,
+          0
+        ],
+        "coverage_area": "lobby"
+      },
+      {
+        "id": "cam_lobby",
+        "location": "Lobby",
+        "position": [
+          10,
+          0
+        ],
+        "coverage_area": "lobby"
+      },
+      {
+        "id": "cam_elevator",
+        "location": "Elevator Bank",
+        "position": [
+          20,
+          0
+        ],
+        "coverage_area": "elevator"
+      },
+      {
+        "id": "cam_hallway_2f",
+        "location": "2nd Floor Hallway",
+        "position": [
+          20,
+          10
+        ],
+        "coverage_area": "hallway"
+      },
+      {
+        "id": "cam_server_room",
+        "location": "Server Room",
+        "position": [
+          30,
+          10
+        ],
+        "coverage_area": "server_room"
+      },
+      {
+        "id": "cam_parking",
+        "location": "Parking Garage",
+        "position": [
+          -10,
+          0
+        ],
+        "coverage_area": "parking"
+      },
+      {
+        "id": "cam_stairwell",
+        "location": "Stairwell",
+        "position": [
+          15,
+          5
+        ],
+        "coverage_area": "stairwell"
+      },
+      {
+        "id": "cam_back_exit",
+        "location": "Back Exit",
+        "position": [
+          30,
+          0
+        ],
+        "coverage_area": "exit"
+      }
+    ],
+    "connections": [
+      {
+        "from": "cam_entrance",
+        "to": "cam_lobby",
+        "travel_time": 15,
+        "distance": 20,
+        "via_blind_spot": false
+      },
+      {
+        "from": "cam_lobby",
+        "to": "cam_elevator",
+        "travel_time": 30,
+        "distance": 30,
+        "via_blind_spot": false
+      },
+      {
+        "from": "cam_lobby",
+        "to": "cam_stairwell",
+        "travel_time": 20,
+        "distance": 15,
+        "via_blind_spot": true
+      },
+      {
+        "from": "cam_elevator",
+        "to": "cam_hallway_2f",
+        "travel_time": 45,
+        "distance": 10,
+        "via_blind_spot": true
+      },
+      {
+        "from": "cam_stairwell",
+        "to": "cam_hallway_2f",
+        "travel_time": 60,
+        "distance": 20,
+        "via_blind_spot": true
+      },
+      {
+        "from": "cam_hallway_2f",
+        "to": "cam_server_room",
+        "travel_time": 20,
+        "distance": 15,
+        "via_blind_spot": false
+      },
+      {
+        "from": "cam_parking",
+        "to": "cam_entrance",
+        "travel_time": 60,
+        "distance": 50,
+        "via_blind_spot": true
+      },
+      {
+        "from": "cam_lobby",
+        "to": "cam_back_exit",
+        "travel_time": 45,
+        "distance": 40,
+        "via_blind_spot": true
+      },
+      {
+        "from": "cam_server_room",
+        "to": "cam_hallway_2f",
+        "travel_time": 20,
+        "distance": 15,
+        "via_blind_spot": false
+      },
+      {
+        "from": "cam_hallway_2f",
+        "to": "cam_elevator",
+        "travel_time": 45,
+        "distance": 10,
+        "via_blind_spot": true
+      },
+      {
+        "from": "cam_elevator",
+        "to": "cam_lobby",
+        "travel_time": 30,
+        "distance": 30,
+        "via_blind_spot": false
+      },
+      {
+        "from": "cam_lobby",
+        "to": "cam_entrance",
+        "travel_time": 15,
+        "distance": 20,
+        "via_blind_spot": false
+      }
+    ]
+  },
+  "ground_truth": {
+    "suspect": {
+      "id": "EMP001",
+      "name": "John Smith",
+      "role": "Software Engineer"
+    },
+    "suspect_path": [
+      {
+        "camera_id": "cam_parking",
+        "timestamp": "2025-01-22T08:00:00",
+        "person": {
+          "id": "EMP001",
+          "name": "John Smith",
+          "role": "Software Engineer"
+        },
+        "action": "arrives at parking"
+      },
+      {
+        "camera_id": "cam_entrance",
+        "timestamp": "2025-01-22T08:06:00",
+        "person": {
+          "id": "EMP001",
+          "name": "John Smith",
+          "role": "Software Engineer"
+        },
+        "action": "enters building"
+      },
+      {
+        "camera_id": "cam_lobby",
+        "timestamp": "2025-01-22T08:07:00",
+        "person": {
+          "id": "EMP001",
+          "name": "John Smith",
+          "role": "Software Engineer"
+        },
+        "action": "crosses lobby"
+      },
+      {
+        "camera_id": "cam_elevator",
+        "timestamp": "2025-01-22T08:47:00",
+        "person": {
+          "id": "EMP001",
+          "name": "John Smith",
+          "role": "Software Engineer"
+        },
+        "action": "takes elevator"
+      },
+      {
+        "camera_id": "cam_hallway_2f",
+        "timestamp": "2025-01-22T08:48:00",
+        "person": {
+          "id": "EMP001",
+          "name": "John Smith",
+          "role": "Software Engineer"
+        },
+        "action": "exits elevator on 2nd floor"
+      },
+      {
+        "camera_id": "cam_server_room",
+        "timestamp": "2025-01-22T08:51:00",
+        "person": {
+          "id": "EMP001",
+          "name": "John Smith",
+          "role": "Software Engineer"
+        },
+        "action": "enters server room",
+        "is_crime_scene": true
+      },
+      {
+        "camera_id": "cam_server_room",
+        "timestamp": "2025-01-22T08:57:00",
+        "person": {
+          "id": "EMP001",
+          "name": "John Smith",
+          "role": "Software Engineer"
+        },
+        "action": "exits server room"
+      },
+      {
+        "camera_id": "cam_hallway_2f",
+        "timestamp": "2025-01-22T08:59:00",
+        "person": {
+          "id": "EMP001",
+          "name": "John Smith",
+          "role": "Software Engineer"
+        },
+        "action": "returns to hallway"
+      },
+      {
+        "camera_id": "cam_back_exit",
+        "timestamp": "2025-01-22T09:09:00",
+        "person": {
+          "id": "EMP001",
+          "name": "John Smith",
+          "role": "Software Engineer"
+        },
+        "action": "exits via back door",
+        "is_suspicious": true
+      }
+    ],
+    "crime_location": "cam_server_room",
+    "crime_time": "2025-01-22T09:30:00",
+    "motive": "Unauthorized after hours intrusion"
+  },
+  "evidence": {
+    "access_logs": [
+      {
+        "person_id": "EMP005",
+        "person_name": "Michael Brown",
+        "location": "Main Entrance",
+        "timestamp": "2025-01-22T07:53:00",
+        "action": "entry"
+      },
+      {
+        "person_id": "EMP002",
+        "person_name": "Jane Doe",
+        "location": "Main Entrance",
+        "timestamp": "2025-01-22T08:02:00",
+        "action": "entry"
+      },
+      {
+        "person_id": "VIS001",
+        "person_name": "Alex Wilson",
+        "location": "Main Entrance",
+        "timestamp": "2025-01-22T08:05:00",
+        "action": "entry"
+      },
+      {
+        "person_id": "EMP001",
+        "person_name": "John Smith",
+        "location": "Entrance",
+        "timestamp": "2025-01-22T08:06:00",
+        "action": "entry"
+      },
+      {
+        "person_id": "VIS002",
+        "person_name": "Sarah Davis",
+        "location": "Main Entrance",
+        "timestamp": "2025-01-22T08:10:00",
+        "action": "entry"
+      },
+      {
+        "person_id": "EMP004",
+        "person_name": "Emily Chen",
+        "location": "Main Entrance",
+        "timestamp": "2025-01-22T08:21:00",
+        "action": "entry"
+      },
+      {
+        "person_id": "EMP003",
+        "person_name": "Robert Johnson",
+        "location": "Main Entrance",
+        "timestamp": "2025-01-22T08:25:00",
+        "action": "entry"
+      },
+      {
+        "person_id": "EMP001",
+        "person_name": "John Smith",
+        "location": "Server Room",
+        "timestamp": "2025-01-22T08:51:00",
+        "action": "entry"
+      },
+      {
+        "person_id": "EMP001",
+        "person_name": "John Smith",
+        "location": "Server Room",
+        "timestamp": "2025-01-22T08:57:00",
+        "action": "entry"
+      }
+    ],
+    "camera_sightings": [
+      {
+        "camera_id": "cam_entrance",
+        "timestamp": "2025-01-22T07:53:00",
+        "person_id": "EMP005",
+        "detection_confidence": 0.76,
+        "description": "enters building"
+      },
+      {
+        "camera_id": "cam_lobby",
+        "timestamp": "2025-01-22T07:54:00",
+        "person_id": "EMP005",
+        "detection_confidence": 0.76,
+        "description": "in lobby"
+      },
+      {
+        "camera_id": "cam_parking",
+        "timestamp": "2025-01-22T08:00:00",
+        "person_id": "EMP001",
+        "detection_confidence": 0.87,
+        "description": "arrives at parking"
+      },
+      {
+        "camera_id": "cam_entrance",
+        "timestamp": "2025-01-22T08:02:00",
+        "person_id": "EMP002",
+        "detection_confidence": 0.67,
+        "description": "enters building"
+      },
+      {
+        "camera_id": "cam_elevator",
+        "timestamp": "2025-01-22T08:02:00",
+        "person_id": "EMP005",
+        "detection_confidence": 0.64,
+        "description": "takes elevator"
+      },
+      {
+        "camera_id": "cam_lobby",
+        "timestamp": "2025-01-22T08:03:00",
+        "person_id": "EMP002",
+        "detection_confidence": 0.68,
+        "description": "in lobby"
+      },
+      {
+        "camera_id": "cam_elevator",
+        "timestamp": "2025-01-22T08:05:00",
+        "person_id": "EMP002",
+        "detection_confidence": 0.73,
+        "description": "takes elevator"
+      },
+      {
+        "camera_id": "cam_entrance",
+        "timestamp": "2025-01-22T08:05:00",
+        "person_id": "VIS001",
+        "detection_confidence": 0.66,
+        "description": "enters building"
+      },
+      {
+        "camera_id": "cam_entrance",
+        "timestamp": "2025-01-22T08:06:00",
+        "person_id": "EMP001",
+        "detection_confidence": 0.93,
+        "description": "enters building"
+      },
+      {
+        "camera_id": "cam_lobby",
+        "timestamp": "2025-01-22T08:07:00",
+        "person_id": "EMP001",
+        "detection_confidence": 0.75,
+        "description": "crosses lobby"
+      },
+      {
+        "camera_id": "cam_lobby",
+        "timestamp": "2025-01-22T08:07:00",
+        "person_id": "VIS001",
+        "detection_confidence": 0.63,
+        "description": "in lobby"
+      },
+      {
+        "camera_id": "cam_entrance",
+        "timestamp": "2025-01-22T08:10:00",
+        "person_id": "VIS002",
+        "detection_confidence": 0.88,
+        "description": "enters building"
+      },
+      {
+        "camera_id": "cam_lobby",
+        "timestamp": "2025-01-22T08:13:00",
+        "person_id": "VIS002",
+        "detection_confidence": 0.85,
+        "description": "in lobby"
+      },
+      {
+        "camera_id": "cam_entrance",
+        "timestamp": "2025-01-22T08:21:00",
+        "person_id": "EMP004",
+        "detection_confidence": 0.71,
+        "description": "enters building"
+      },
+      {
+        "camera_id": "cam_elevator",
+        "timestamp": "2025-01-22T08:21:00",
+        "person_id": "VIS002",
+        "detection_confidence": 0.62,
+        "description": "takes elevator"
+      },
+      {
+        "camera_id": "cam_lobby",
+        "timestamp": "2025-01-22T08:23:00",
+        "person_id": "EMP004",
+        "detection_confidence": 0.89,
+        "description": "in lobby"
+      },
+      {
+        "camera_id": "cam_entrance",
+        "timestamp": "2025-01-22T08:25:00",
+        "person_id": "EMP003",
+        "detection_confidence": 0.78,
+        "description": "enters building"
+      },
+      {
+        "camera_id": "cam_lobby",
+        "timestamp": "2025-01-22T08:28:00",
+        "person_id": "EMP003",
+        "detection_confidence": 0.81,
+        "description": "in lobby"
+      },
+      {
+        "camera_id": "cam_elevator",
+        "timestamp": "2025-01-22T08:28:00",
+        "person_id": "EMP004",
+        "detection_confidence": 0.83,
+        "description": "takes elevator"
+      },
+      {
+        "camera_id": "cam_elevator",
+        "timestamp": "2025-01-22T08:34:00",
+        "person_id": "EMP003",
+        "detection_confidence": 0.75,
+        "description": "takes elevator"
+      },
+      {
+        "camera_id": "cam_elevator",
+        "timestamp": "2025-01-22T08:47:00",
+        "person_id": "EMP001",
+        "detection_confidence": 0.89,
+        "description": "takes elevator"
+      },
+      {
+        "camera_id": "cam_hallway_2f",
+        "timestamp": "2025-01-22T08:48:00",
+        "person_id": "EMP001",
+        "detection_confidence": 0.72,
+        "description": "exits elevator on 2nd floor"
+      },
+      {
+        "camera_id": "cam_server_room",
+        "timestamp": "2025-01-22T08:51:00",
+        "person_id": "EMP001",
+        "detection_confidence": 0.76,
+        "description": "enters server room"
+      },
+      {
+        "camera_id": "cam_server_room",
+        "timestamp": "2025-01-22T08:57:00",
+        "person_id": "EMP001",
+        "detection_confidence": 0.85,
+        "description": "exits server room"
+      },
+      {
+        "camera_id": "cam_hallway_2f",
+        "timestamp": "2025-01-22T08:59:00",
+        "person_id": "EMP001",
+        "detection_confidence": 0.78,
+        "description": "returns to hallway"
+      },
+      {
+        "camera_id": "cam_back_exit",
+        "timestamp": "2025-01-22T09:09:00",
+        "person_id": "EMP001",
+        "detection_confidence": 0.82,
+        "description": "exits via back door"
+      }
+    ],
+    "witness_statements": [
+      {
+        "source": "Security Guard Mike",
+        "text": "I noticed John Smith acting unusual around 09:00 AM. They were looking around nervously near the stairwell entrance. Usually they take the elevator.",
+        "timestamp": "2025-01-22T11:00:00",
+        "event_time": "2025-01-22T09:00:00",
+        "reliability_score": 0.85,
+        "is_accurate": true
+      },
+      {
+        "source": "Receptionist Lisa",
+        "text": "I saw John Smith arrive around 08:30 AM. They seemed to be in a hurry.",
+        "timestamp": "2025-01-22T11:00:00",
+        "event_time": "2025-01-22T08:30:00",
+        "reliability_score": 0.7,
+        "is_accurate": true
+      },
+      {
+        "source": "Janitor Dave",
+        "text": "I think I saw Emily Chen near the server room around 09:15 AM. I'm not 100% sure though, the lighting was poor.",
+        "timestamp": "2025-01-22T12:00:00",
+        "event_time": "2025-01-22T09:15:00",
+        "reliability_score": 0.4,
+        "is_accurate": false,
+        "is_false_lead": true
+      }
+    ]
+  },
+  "false_leads": [
+    {
+      "type": "misleading_witness",
+      "description": "Witness incorrectly identifies Emily Chen near crime scene",
+      "person_implicated": {
+        "id": "EMP004",
+        "name": "Emily Chen",
+        "role": "Data Analyst"
+      },
+      "should_be_flagged_by_critic": true
+    },
+    {
+      "type": "coincidental_access",
+      "description": "Emily Chen legitimately accessed a nearby area around the same time",
+      "person_implicated": {
+        "id": "EMP004",
+        "name": "Emily Chen",
+        "role": "Data Analyst"
+      },
+      "should_be_flagged_by_critic": true
+    }
+  ],
+  "metadata": {
+    "num_cameras": 8,
+    "num_people": 7,
+    "num_blind_spots": 6,
+    "num_false_leads": 2,
+    "difficulty": "hard"
+  }
+}

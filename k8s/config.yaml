@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: detective-ai-config
+  namespace: detective-ai
+data:
+  GROQ_MODEL: "llama-3.3-70b-versatile"
+  LOG_LEVEL: "INFO"
+  MAX_INVESTIGATION_ROUNDS: "3"
+  CONFIDENCE_THRESHOLD: "0.6"
+  DATABASE_URL: "postgresql://detective:detective123@postgres:5432/detective_ai"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: detective-ai-secrets
+  namespace: detective-ai
+type: Opaque
+stringData:
+  # Replace before applying: kubectl create secret generic detective-ai-secrets
+  #   --from-literal=GROQ_API_KEY=... -n detective-ai
+  GROQ_API_KEY: "REPLACE_ME"
