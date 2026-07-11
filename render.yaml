@@ -1,0 +1,29 @@
+# Render Blueprint — Detective AI Backend
+# Deploy: Connect your GitHub repo at https://render.com/deploy
+
+services:
+  - type: web
+    name: detective-ai-backend
+    runtime: docker
+    repo: https://github.com/HRUTHIK-REDDY-ALLAM/Majorproject.git
+    branch: main
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false  # You'll set this manually in the Render dashboard
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+      - key: DATABASE_URL
+        value: sqlite:///data/detective_ai.db
+      - key: LOG_LEVEL
+        value: INFO
+      - key: APP_HOST
+        value: 0.0.0.0
+      - key: APP_PORT
+        value: 8000
+      - key: MAX_INVESTIGATION_ROUNDS
+        value: 3
+      - key: CONFIDENCE_THRESHOLD
+        value: 0.6
+    healthCheckPath: /api/health

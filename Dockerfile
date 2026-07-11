@@ -18,6 +18,8 @@ COPY src ./src
 COPY benchmarks ./benchmarks
 COPY frontend ./frontend
 
+RUN mkdir -p /app/data && chown detective:detective /app/data
+
 ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
     APP_HOST=0.0.0.0 \

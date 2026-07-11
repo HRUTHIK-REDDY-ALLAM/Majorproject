@@ -47,7 +47,21 @@ app.include_router(counterfactual_router)
 
 # ── Static Files (Frontend) ──────────────────────────────────
 
-_FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent.parent / "frontend"
+def _resolve_frontend_dir() -> Path:
+    """Locate the frontend directory whether running from a source checkout
+    (frontend/ four levels up from this file) or from an installed package
+    in a container with WORKDIR/frontend copied alongside (cwd-relative)."""
+    candidates = [
+        Path.cwd() / "frontend",
+        Path(__file__).resolve().parent.parent.parent.parent / "frontend",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
+
+
+_FRONTEND_DIR = _resolve_frontend_dir()
 
 if _FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(_FRONTEND_DIR / "static")), name="static")
