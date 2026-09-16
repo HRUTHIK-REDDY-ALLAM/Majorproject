@@ -16,7 +16,6 @@ import numpy as np
 from detective_ai.config import settings
 from detective_ai.core.enums import EvidenceType
 from detective_ai.core.models import Evidence
-from detective_ai.ingestion.embeddings import embed_text
 from detective_ai.storage.database import db
 
 logger = logging.getLogger(__name__)
@@ -131,35 +130,51 @@ def process_video(
     Returns:
         List of Evidence objects created.
     """
-    frames = extract_frames(video_path, fps=fps, max_frames=max_frames)
-    evidence_items = []
+    from detective_ai.ingestion.embeddings import embed_texts
 
+    frames = extract_frames(video_path, fps=fps, max_frames=max_frames)
+    if not frames:
+        logger.warning(f"No frames extracted from {video_path}")
+        return []
+
+    # Build descriptions and compute confidence for all frames first
+    frame_info = []
+    descriptions = []
     for frame_data in frames:
         timestamp = start_time + timedelta(seconds=frame_data["timestamp_offset"])
         confidence = compute_capture_confidence(frame_data["frame"])
-
-        # Create a text description for embedding
         description = (
             f"Video frame from camera {camera_id} at {timestamp.isoformat()}, "
             f"frame {frame_data['frame_number']}, quality score {confidence:.2f}"
         )
-        embedding = embed_text(description)
+        frame_info.append({
+            "timestamp": timestamp,
+            "confidence": confidence,
+            "frame_data": frame_data,
+        })
+        descriptions.append(description)
 
+    # Batch-embed all descriptions at once (much faster than one-by-one)
+    logger.info(f"Batch-embedding {len(descriptions)} frame descriptions…")
+    embeddings = embed_texts(descriptions)
+
+    # Store each evidence record
+    evidence_items = []
+    for i, info in enumerate(frame_info):
         evidence = Evidence(
             type=EvidenceType.VIDEO_FRAME,
             source=camera_id,
-            timestamp=timestamp,
-            confidence_score=confidence,
-            description=description,
+            timestamp=info["timestamp"],
+            confidence_score=info["confidence"],
+            description=descriptions[i],
             metadata={
                 "camera_id": camera_id,
-                "frame_number": frame_data["frame_number"],
+                "frame_number": info["frame_data"]["frame_number"],
                 "case_id": case_id,
-                "resolution": f"{frame_data['frame'].shape[1]}x{frame_data['frame'].shape[0]}",
+                "resolution": f"{info['frame_data']['frame'].shape[1]}x{info['frame_data']['frame'].shape[0]}",
             },
         )
 
-        # Store in database
         with db.session() as session:
             db.insert_evidence(
                 session,
@@ -170,7 +185,7 @@ def process_video(
                 confidence_score=evidence.confidence_score,
                 description=evidence.description,
                 metadata_=evidence.metadata,
-                embedding=embedding,
+                embedding=embeddings[i] if i < len(embeddings) else None,
             )
 
         evidence_items.append(evidence)

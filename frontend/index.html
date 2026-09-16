@@ -3,352 +3,351 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detective AI — Multi-Agent Forensic Reasoning</title>
-    <meta name="description" content="An auditable multi-agent investigation system with calibrated confidence, adversarial self-critique, and counterfactual reasoning.">
+    <title>Detective AI � Multi-Agent Forensic Reasoning</title>
+    <meta name="description" content="AI-powered crime investigation: multi-agent forensic reasoning with hypothesis tracking, adversarial critique and evidence verification.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css?v=13">
 </head>
 <body>
-    <!-- ═══ SIDEBAR ═══ -->
-    <aside id="sidebar" class="sidebar">
-        <div class="sidebar-header">
-            <div class="logo">
-                <div class="logo-icon">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <path d="m21 21-4.3-4.3"></path>
-                    </svg>
-                </div>
-                <div>
-                    <h1 class="logo-text">Detective AI</h1>
-                    <span class="logo-sub">Forensic Reasoning System</span>
-                </div>
+    <!-- NAVBAR -->
+    <header class="navbar">
+        <div class="navbar-brand">
+            <div class="brand-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+            </div>
+            <div class="brand-name">
+                <span class="brand-title">Detective AI</span>
+                <span class="brand-sub">Forensic Reasoning System</span>
             </div>
         </div>
-
-        <nav class="sidebar-nav">
-            <a href="#" class="nav-item active" data-view="dashboard" onclick="switchView('dashboard')">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        <nav class="navbar-tabs" role="tablist">
+            <button class="tab active" data-tab="dashboard" role="tab" id="tab-dashboard">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect></svg>
                 Dashboard
-            </a>
-            <a href="#" class="nav-item" data-view="ingest" onclick="switchView('ingest')">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            </button>
+            <button class="tab" data-tab="ingest" role="tab" id="tab-ingest">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                 Ingest Evidence
-            </a>
-            <a href="#" class="nav-item" data-view="investigate" onclick="switchView('investigate')">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+            </button>
+            <button class="tab" data-tab="investigate" role="tab" id="tab-investigate">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
                 Investigate
-            </a>
-            <a href="#" class="nav-item" data-view="reports" onclick="switchView('reports')">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+            </button>
+            <button class="tab" data-tab="reports" role="tab" id="tab-reports">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                 Reports
-            </a>
-            <a href="#" class="nav-item" data-view="counterfactual" onclick="switchView('counterfactual')">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                What If?
-            </a>
+            </button>
+            <button class="tab" data-tab="whatif" role="tab" id="tab-whatif">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                What-If
+            </button>
         </nav>
-
-        <div class="sidebar-footer">
-            <div class="status-indicator">
-                <span class="status-dot" id="apiStatus"></span>
-                <span class="status-text" id="apiStatusText">Checking...</span>
-            </div>
+        <div class="navbar-status">
+            <span class="status-dot" id="apiStatus"></span>
+            <span class="status-label" id="apiStatusText">Connecting�</span>
         </div>
-    </aside>
+    </header>
 
-    <!-- ═══ MAIN CONTENT ═══ -->
-    <main id="mainContent" class="main-content">
-
-        <!-- ── DASHBOARD VIEW ── -->
-        <section id="view-dashboard" class="view active">
-            <div class="view-header">
-                <h2>Investigation Dashboard</h2>
-                <p class="subtitle">Real-time overview of active investigations</p>
+    <main class="main">
+        <!-- DASHBOARD -->
+        <section class="page active" id="page-dashboard">
+            <div class="page-header">
+                <h1>Investigation Dashboard</h1>
+                <p class="page-subtitle">Real-time overview of all forensic investigations</p>
             </div>
-
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon blue">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
-                    </div>
-                    <div class="stat-info">
-                        <span class="stat-value" id="totalCases">0</span>
-                        <span class="stat-label">Total Cases</span>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon amber">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                    </div>
-                    <div class="stat-info">
-                        <span class="stat-value" id="activeCases">0</span>
-                        <span class="stat-label">Active</span>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon green">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                    </div>
-                    <div class="stat-info">
-                        <span class="stat-value" id="completedCases">0</span>
-                        <span class="stat-label">Completed</span>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon purple">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                    </div>
-                    <div class="stat-info">
-                        <span class="stat-value" id="evidenceCount">0</span>
-                        <span class="stat-label">Evidence Items</span>
-                    </div>
-                </div>
+            <div class="stats-row">
+                <div class="stat-card"><div class="stat-icon blue"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"></rect><path d="M8 21h8M12 17v4"></path></svg></div><div><div class="stat-value" id="totalCases">�</div><div class="stat-label">Total Cases</div></div></div>
+                <div class="stat-card"><div class="stat-icon amber"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div><div><div class="stat-value" id="activeCases">�</div><div class="stat-label">Running</div></div></div>
+                <div class="stat-card"><div class="stat-icon green"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div><div><div class="stat-value" id="completedCases">�</div><div class="stat-label">Completed</div></div></div>
+                <div class="stat-card"><div class="stat-icon red"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></div><div><div class="stat-value" id="failedCases">�</div><div class="stat-label">Failed</div></div></div>
             </div>
-
-            <div class="cases-section">
-                <h3>Recent Cases</h3>
-                <div id="casesList" class="cases-list">
-                    <div class="empty-state">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
-                        <p>No investigations yet</p>
-                        <span>Ingest evidence and start your first investigation</span>
-                    </div>
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Recent Investigations</h2>
+                    <button class="btn-ghost btn-sm" onclick="refreshDashboard()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                        Refresh
+                    </button>
+                    <button class="btn-ghost btn-sm" style="color:#ef4444" onclick="clearHistory()" id="clearHistoryBtn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        Clear History
+                    </button>
                 </div>
+                <div id="casesList"><div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg><p>No investigations yet</p><span>Ingest evidence then start your first investigation</span></div></div>
             </div>
         </section>
 
-        <!-- ── INGEST VIEW ── -->
-        <section id="view-ingest" class="view">
-            <div class="view-header">
-                <h2>Ingest Evidence</h2>
-                <p class="subtitle">Upload video feeds, access logs, or witness statements</p>
+        <!-- INGEST EVIDENCE -->
+        <section class="page" id="page-ingest">
+            <div class="page-header">
+                <h1>Ingest Evidence</h1>
+                <p class="page-subtitle">Upload CCTV footage, access-control logs, or witness statements into the investigation system</p>
             </div>
-
-            <div class="ingest-tabs">
-                <button class="tab-btn active" onclick="switchIngestTab('logs')">Access Logs</button>
-                <button class="tab-btn" onclick="switchIngestTab('statements')">Witness Statements</button>
-                <button class="tab-btn" onclick="switchIngestTab('video')">Video Feed</button>
-            </div>
-
-            <!-- Access Logs Tab -->
-            <div id="tab-logs" class="tab-content active">
-                <div class="form-card">
-                    <h3>Upload Access Logs</h3>
-                    <div class="form-group">
-                        <label>Source System</label>
-                        <input type="text" id="logSource" placeholder="e.g., badge_system_main" value="badge_system">
-                    </div>
-                    <div class="form-group">
-                        <label>Case ID (optional)</label>
-                        <input type="text" id="logCaseId" placeholder="Existing case ID or leave blank">
-                    </div>
-                    <div class="form-group">
-                        <label>Log Data (JSON)</label>
-                        <textarea id="logContent" rows="10" placeholder='[&#10;  {"person_id": "EMP001", "person_name": "John Smith", "location": "Main Entrance", "timestamp": "2025-01-15T08:30:00", "action": "entry"},&#10;  {"person_id": "EMP002", "person_name": "Jane Doe", "location": "Server Room", "timestamp": "2025-01-15T09:15:00", "action": "entry"}&#10;]'></textarea>
-                    </div>
-                    <button class="btn-primary" onclick="ingestLogs()">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                        Ingest Logs
-                    </button>
-                </div>
-            </div>
-
-            <!-- Statements Tab -->
-            <div id="tab-statements" class="tab-content">
-                <div class="form-card">
-                    <h3>Submit Witness Statement</h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Witness Name</label>
-                            <input type="text" id="stmtSource" placeholder="e.g., Security Guard Mike">
-                        </div>
-                        <div class="form-group">
-                            <label>Reliability (0-1)</label>
-                            <input type="number" id="stmtReliability" value="0.7" min="0" max="1" step="0.1">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Statement Time</label>
-                            <input type="datetime-local" id="stmtTimestamp">
-                        </div>
-                        <div class="form-group">
-                            <label>Event Time (optional)</label>
-                            <input type="datetime-local" id="stmtEventTime">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Case ID (optional)</label>
-                        <input type="text" id="stmtCaseId" placeholder="Existing case ID">
-                    </div>
-                    <div class="form-group">
-                        <label>Statement Text</label>
-                        <textarea id="stmtText" rows="6" placeholder="I saw a person in a dark hoodie entering through the side door around 9 PM..."></textarea>
-                    </div>
-                    <button class="btn-primary" onclick="ingestStatement()">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                        Submit Statement
-                    </button>
-                </div>
-            </div>
-
-            <!-- Video Tab -->
-            <div id="tab-video" class="tab-content">
-                <div class="form-card">
-                    <h3>Upload Video Feed</h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Camera ID</label>
-                            <input type="text" id="videoCamera" placeholder="e.g., cam_lobby_01">
-                        </div>
-                        <div class="form-group">
-                            <label>Recording Start Time</label>
-                            <input type="datetime-local" id="videoStartTime">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Case ID (optional)</label>
-                        <input type="text" id="videoCaseId" placeholder="Existing case ID">
-                    </div>
-                    <div class="form-group">
-                        <label>Video File</label>
-                        <div class="file-upload" id="videoDropZone">
-                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line></svg>
-                            <p>Drag & drop video file or click to browse</p>
-                            <input type="file" id="videoFile" accept="video/*" style="display:none">
-                        </div>
-                    </div>
-                    <button class="btn-primary" onclick="ingestVideo()">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                        Upload & Process
-                    </button>
-                </div>
-            </div>
-
-            <div id="ingestResult" class="result-panel" style="display:none;"></div>
-        </section>
-
-        <!-- ── INVESTIGATE VIEW ── -->
-        <section id="view-investigate" class="view">
-            <div class="view-header">
-                <h2>Start Investigation</h2>
-                <p class="subtitle">Launch the multi-agent reasoning pipeline</p>
-            </div>
-
-            <div class="form-card">
-                <h3>New Investigation</h3>
-                <div class="form-group">
-                    <label>Investigation Title</label>
-                    <input type="text" id="invTitle" placeholder="e.g., Unauthorized Server Room Access - Jan 15">
-                </div>
-                <div class="form-group">
-                    <label>Description</label>
-                    <textarea id="invDescription" rows="4" placeholder="Describe what you're investigating: an unauthorized access to the server room was detected..."></textarea>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Max Rounds</label>
-                        <input type="number" id="invMaxRounds" value="3" min="1" max="5">
-                    </div>
-                    <div class="form-group">
-                        <label>Case ID (auto-generated if blank)</label>
-                        <input type="text" id="invCaseId" placeholder="Auto-generated">
-                    </div>
-                </div>
-                <button class="btn-primary btn-large" onclick="startInvestigation()">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
-                    Launch Investigation
+            <div class="sub-tabs">
+                <button class="sub-tab active" onclick="switchSubTab('video',this)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line></svg>
+                    CCTV Video
+                </button>
+                <button class="sub-tab" onclick="switchSubTab('logs',this)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                    Access Logs
+                </button>
+                <button class="sub-tab" onclick="switchSubTab('statements',this)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    Witness Statement
                 </button>
             </div>
 
-            <!-- Live Investigation Progress -->
-            <div id="investigationProgress" class="progress-panel" style="display:none;">
-                <h3>Investigation Progress</h3>
-                <div class="progress-tracker">
-                    <div class="progress-step" id="step-ingestion">
-                        <div class="step-dot"></div>
-                        <span>Evidence Analysis</span>
+            <!-- Video Sub-page -->
+            <div class="sub-page active" id="sub-video">
+                <div class="card">
+                    <h2 class="card-title" style="margin-bottom:1.5rem">Upload CCTV Video</h2>
+                    <div class="info-banner">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                        YOLOv8 person detection + MobileNetV2 re-identification will run on each frame. Results become distinct CCTV evidence items in the database.
                     </div>
-                    <div class="progress-step" id="step-hypothesis">
-                        <div class="step-dot"></div>
-                        <span>Hypothesis Formation</span>
+                    <div class="form-group">
+                        <label class="form-label" for="videoCaseId">Case ID <span class="form-optional">(optional)</span></label>
+                        <input class="form-input" type="text" id="videoCaseId" placeholder="Leave blank to auto-generate" autocomplete="off">
                     </div>
-                    <div class="progress-step" id="step-gathering">
-                        <div class="step-dot"></div>
-                        <span>Evidence Gathering</span>
+                    <div class="drop-zone" id="videoDropZone">
+                        <div class="drop-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg></div>
+                        <p class="drop-text" id="dropText">Drop video file here or <span class="drop-link">browse</span></p>
+                        <p class="drop-hint">MP4, AVI, MOV � any surveillance format</p>
+                        <input type="file" id="videoFile" accept="video/*" style="display:none">
                     </div>
-                    <div class="progress-step" id="step-trajectory">
-                        <div class="step-dot"></div>
-                        <span>Gap Inference</span>
+                    <div class="upload-progress" id="uploadProgress" style="display:none">
+                        <div class="progress-bar-wrap"><div class="progress-bar-fill" id="uploadFill" style="width:0%"></div></div>
+                        <span id="uploadLabel">Uploading�</span>
                     </div>
-                    <div class="progress-step" id="step-critic">
-                        <div class="step-dot"></div>
-                        <span>Adversarial Review</span>
-                    </div>
-                    <div class="progress-step" id="step-verification">
-                        <div class="step-dot"></div>
-                        <span>Verification</span>
-                    </div>
-                    <div class="progress-step" id="step-report">
-                        <div class="step-dot"></div>
-                        <span>Report Generation</span>
+                    <div class="form-actions">
+                        <button class="btn-primary" id="videoUploadBtn" onclick="ingestVideo()">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                            Upload &amp; Process Video
+                        </button>
                     </div>
                 </div>
-                <div class="progress-log" id="progressLog"></div>
+                <div id="videoResult" class="result-card" style="display:none"></div>
+            </div>
+
+            <!-- Logs Sub-page -->
+            <div class="sub-page" id="sub-logs">
+                <div class="card">
+                    <h2 class="card-title" style="margin-bottom:1.5rem">Upload Access Control Logs</h2>
+                    <div class="info-banner">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                        Paste a JSON array of door / badge events. Each entry needs <code>person_id</code>, <code>location</code>, <code>timestamp</code>, and <code>action</code>.
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="logSource">Source System</label>
+                            <input class="form-input" type="text" id="logSource" value="badge_system" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="logCaseId">Case ID <span class="form-optional">(optional)</span></label>
+                            <input class="form-input" type="text" id="logCaseId" placeholder="Link to existing case" autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="logContent">Log Data (JSON)</label>
+                        <textarea class="form-textarea code-textarea" id="logContent" rows="10" placeholder='[
+  {"person_id":"P001","person_name":"Unknown","location":"Main Entrance","timestamp":"2025-01-15T10:31:00","action":"entry"},
+  {"person_id":"P001","person_name":"Unknown","location":"Aisle 3","timestamp":"2025-01-15T10:33:05","action":"observed"},
+  {"person_id":"P001","person_name":"Unknown","location":"Exit","timestamp":"2025-01-15T10:34:42","action":"exit"}
+]'></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn-primary" onclick="ingestLogs()">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                            Ingest Logs
+                        </button>
+                    </div>
+                </div>
+                <div id="logsResult" class="result-card" style="display:none"></div>
+            </div>
+
+            <!-- Statements Sub-page -->
+            <div class="sub-page" id="sub-statements">
+                <div class="card">
+                    <h2 class="card-title" style="margin-bottom:1.5rem">Submit Witness Statement</h2>
+                    <div class="info-banner">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                        Statements are stored as evidence with a reliability score. They feed directly into the Investigator and Critic agents during reasoning.
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="stmtSource">Witness Name / Role</label>
+                            <input class="form-input" type="text" id="stmtSource" placeholder="e.g., Security Guard � Aisle 3" autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="stmtTimestamp">Statement Time</label>
+                            <input class="form-input" type="datetime-local" id="stmtTimestamp">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="stmtEventTime">Event Time <span class="form-optional">(optional)</span></label>
+                            <input class="form-input" type="datetime-local" id="stmtEventTime">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="stmtCaseId">Case ID <span class="form-optional">(optional)</span></label>
+                        <input class="form-input" type="text" id="stmtCaseId" placeholder="Link to existing case" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="stmtText">Statement Text</label>
+                        <textarea class="form-textarea" id="stmtText" rows="5" placeholder="I saw a person in a dark jacket approach the electronics shelf around 10:32. They appeared to place something inside their jacket before moving toward the exit�"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn-primary" onclick="ingestStatement()">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                            Submit Statement
+                        </button>
+                    </div>
+                </div>
+                <div id="stmtResult" class="result-card" style="display:none"></div>
             </div>
         </section>
 
-        <!-- ── REPORTS VIEW ── -->
-        <section id="view-reports" class="view">
-            <div class="view-header">
-                <h2>Investigation Reports</h2>
-                <p class="subtitle">View completed investigation reports with evidence citations</p>
+        <!-- INVESTIGATE -->
+        <section class="page" id="page-investigate">
+            <div class="page-header">
+                <h1>Launch Investigation</h1>
+                <p class="page-subtitle">Start the multi-agent LangGraph reasoning pipeline � Investigator ? Trajectory ? Critic ? Verifier ? Reporter</p>
             </div>
+            <div class="investigate-layout">
+                <div class="card">
+                    <h2 class="card-title" style="margin-bottom:1.5rem">New Investigation</h2>
+                    <div class="form-group">
+                        <label class="form-label" for="invTitle">Investigation Title</label>
+                        <input class="form-input" type="text" id="invTitle" placeholder="e.g., Shoplifting Incident � Cam Entrance � Jan 15" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="invDescription">Description</label>
+                        <textarea class="form-textarea" id="invDescription" rows="3" placeholder="Suspicious behaviour observed on CCTV at the electronics shelf around 10:30�10:35. Person P1 appears to conceal merchandise�"></textarea>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="invMaxRounds">Max Reasoning Rounds</label>
+                            <input class="form-input" type="number" id="invMaxRounds" value="3" min="1" max="5">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="invCaseId">Case ID <span class="form-optional">(auto-generated if blank)</span></label>
+                            <input class="form-input" type="text" id="invCaseId" placeholder="Optional" autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn-primary btn-large" id="launchBtn" onclick="startInvestigation()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                            Launch Investigation
+                        </button>
+                    </div>
+                </div>
 
-            <div id="reportContent" class="report-container">
-                <div class="empty-state">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                    <p>No reports available</p>
-                    <span>Complete an investigation to generate a report</span>
+                <div class="card pipeline-card" id="pipelineCard" style="display:none">
+                    <h2 class="card-title" style="margin-bottom:0.5rem">Pipeline Progress</h2>
+                    <div class="pipeline-id" id="pipelineCaseId"></div>
+                    <div class="pipeline-steps">
+                        <div class="pipeline-step" id="ps-investigation">
+                            <div class="step-indicator"><div class="step-dot"></div></div>
+                            <div class="step-body"><div class="step-name">Investigator Agent</div><div class="step-desc">Correlating evidence, building timeline</div></div>
+                        </div>
+                        <div class="pipeline-step" id="ps-trajectory">
+                            <div class="step-indicator"><div class="step-dot"></div></div>
+                            <div class="step-body"><div class="step-name">Trajectory Agent</div><div class="step-desc">Inferring movement across camera blind spots</div></div>
+                        </div>
+                        <div class="pipeline-step" id="ps-critic">
+                            <div class="step-indicator"><div class="step-dot"></div></div>
+                            <div class="step-body"><div class="step-name">Critic Agent</div><div class="step-desc">Adversarial review � attacking the leading hypothesis</div></div>
+                        </div>
+                        <div class="pipeline-step" id="ps-verifier">
+                            <div class="step-indicator"><div class="step-dot"></div></div>
+                            <div class="step-body"><div class="step-name">Verifier Agent</div><div class="step-desc">Tracing every claim to cited evidence</div></div>
+                        </div>
+                        <div class="pipeline-step" id="ps-reporter">
+                            <div class="step-indicator"><div class="step-dot"></div></div>
+                            <div class="step-body"><div class="step-name">Reporter Agent</div><div class="step-desc">Generating final investigation report</div></div>
+                        </div>
+                        <div class="pipeline-step" id="ps-completed">
+                            <div class="step-indicator"><div class="step-dot"></div></div>
+                            <div class="step-body"><div class="step-name">Completed</div><div class="step-desc">Report ready to view</div></div>
+                        </div>
+                    </div>
+                    <div class="pipeline-log" id="pipelineLog"></div>
+                    <div class="form-actions" id="viewReportAction" style="display:none">
+                        <button class="btn-primary" id="viewReportBtn" onclick="goToReport()">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                            View Investigation Report
+                        </button>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- ── COUNTERFACTUAL VIEW ── -->
-        <section id="view-counterfactual" class="view">
-            <div class="view-header">
-                <h2>Counterfactual Analysis</h2>
-                <p class="subtitle">"What if this evidence were false?" — Sensitivity testing</p>
+        <!-- REPORTS -->
+        <section class="page" id="page-reports">
+            <div class="page-header">
+                <h1>Investigation Reports</h1>
+                <p class="page-subtitle">Browse completed investigations with timeline, hypotheses, critic findings, and evidence citations</p>
             </div>
-
-            <div class="form-card">
-                <h3>Explore Counterfactual</h3>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Case ID</label>
-                        <input type="text" id="cfCaseId" placeholder="Enter case ID">
+            <div class="reports-layout">
+                <div class="card reports-sidebar">
+                    <div class="card-header">
+                        <h2 class="card-title">Cases</h2>
+                        <button class="btn-ghost btn-sm" onclick="refreshReports()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                            Refresh
+                        </button>
                     </div>
-                    <div class="form-group">
-                        <label>Evidence ID to Remove</label>
-                        <input type="text" id="cfEvidenceId" placeholder="Evidence ID to treat as false">
+                    <div id="reportsCaseList">
+                        <div class="empty-state"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg><p>No completed reports</p><span>Finish an investigation first</span></div>
                     </div>
                 </div>
-                <button class="btn-primary" onclick="runCounterfactual()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    Run Analysis
-                </button>
+                <div class="reports-main">
+                    <div class="card" id="reportEmpty" style="display:flex; align-items:center; justify-content:center; min-height:300px">
+                        <div class="empty-state"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg><p>Select a case to view its report</p></div>
+                    </div>
+                    <div id="reportContent" style="display:none"></div>
+                </div>
             </div>
+        </section>
 
-            <div id="cfResult" class="result-panel" style="display:none;"></div>
+        <!-- WHAT-IF -->
+        <section class="page" id="page-whatif">
+            <div class="page-header">
+                <h1>What-If Analysis</h1>
+                <p class="page-subtitle">Counterfactual reasoning � remove a piece of evidence and see whether the conclusion changes</p>
+            </div>
+            <div class="card">
+                <h2 class="card-title" style="margin-bottom:1.5rem">Configure Counterfactual</h2>
+                <div class="info-banner">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    The system removes the selected evidence item, re-scores all hypotheses, and reports whether the leading conclusion changes � revealing which evidence is critical.
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label" for="cfCaseId">Case ID</label>
+                        <input class="form-input" type="text" id="cfCaseId" placeholder="Paste a completed case ID" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="cfEvidenceId">Evidence ID to Remove</label>
+                        <input class="form-input" type="text" id="cfEvidenceId" placeholder="Evidence item to treat as false" autocomplete="off">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn-primary" onclick="runCounterfactual()">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                        Run What-If Analysis
+                    </button>
+                </div>
+            </div>
+            <div id="cfResult" style="display:none;margin-top:1.25rem"></div>
         </section>
     </main>
 
-    <!-- ═══ TOAST NOTIFICATIONS ═══ -->
-    <div id="toastContainer" class="toast-container"></div>
-
-    <script src="/static/app.js"></script>
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+    <script src="/static/app.js?v=13"></script>
 </body>
 </html>

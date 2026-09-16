@@ -96,6 +96,25 @@ async def list_cases():
         }
 
 
+@app.delete("/api/v1/clear")
+async def clear_all_data():
+    """Clear ALL data: cases, evidence, statements, logs, hypotheses, trajectories."""
+    try:
+        # Clear in-memory investigation results
+        from detective_ai.api.routes.investigate import _investigation_results
+        _investigation_results.clear()
+
+        # Drop and re-create all tables
+        db.drop_all()
+        db.init_db()
+
+        logger.info("All data cleared successfully.")
+        return {"status": "success", "message": "All data has been cleared."}
+    except Exception as e:
+        logger.error(f"Failed to clear data: {e}")
+        return {"status": "error", "message": f"Failed to clear data: {e}"}
+
+
 # ── Serve Frontend ────────────────────────────────────────────
 
 

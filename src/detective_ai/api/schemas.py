@@ -35,7 +35,7 @@ class IngestStatementRequest(BaseModel):
 
 
 class InvestigateRequest(BaseModel):
-    case_id: str
+    case_id: str = ""
     title: str
     description: str = ""
     max_rounds: int = 3

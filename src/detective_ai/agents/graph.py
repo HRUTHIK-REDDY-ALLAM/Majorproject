@@ -6,6 +6,7 @@ until convergence or max rounds reached.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from functools import partial
 from typing import Any
@@ -32,6 +33,7 @@ def _create_llm() -> ChatGroq:
         temperature=0.1,
         api_key=settings.groq_api_key,
         max_retries=3,
+        max_tokens=950,
     )
 
 
@@ -231,14 +233,26 @@ async def run_investigation(
 
     # Run the graph
     final_state = None
-    async for state in app.astream(initial_state):
-        final_state = state
-        # Log progress
-        for node_name, node_state in state.items():
-            if isinstance(node_state, dict):
-                phase = node_state.get("current_phase", "")
-                round_num = node_state.get("investigation_round", 0)
-                logger.info(f"[{node_name}] Phase: {phase}, Round: {round_num}")
+    try:
+        async for state in app.astream(initial_state):
+            final_state = state
+            # Log progress
+            for node_name, node_state in state.items():
+                if isinstance(node_state, dict):
+                    phase = node_state.get("current_phase", "")
+                    round_num = node_state.get("investigation_round", 0)
+                    logger.info(f"[{node_name}] Phase: {phase}, Round: {round_num}")
+            # Rate-limit guard: pause between LLM calls to respect Groq free tier
+            await asyncio.sleep(2)
+    except Exception as e:
+        logger.error(f"Investigation graph error: {e}")
+        return {
+            "error": f"Pipeline execution error: {e}",
+            "partial_state": {
+                k: v for k, v in (final_state or {}).items()
+                if isinstance(v, (str, int, float, bool, list, dict))
+            },
+        }
 
     # Extract final report
     if final_state:

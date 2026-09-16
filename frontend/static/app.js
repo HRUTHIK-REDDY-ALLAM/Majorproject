@@ -1,500 +1,667 @@
-/* ═══════════════════════════════════════════════════════════════
-   Detective AI — Frontend Application Logic
-   ═══════════════════════════════════════════════════════════════ */
+/* ================================================================
+   Detective AI — Frontend App v10
+   Single-page dark-mode application
+   ================================================================ */
 
-const API_BASE = window.location.origin;
+const API = window.location.origin;
+let currentInvCaseId = null;   // tracks the currently running investigation
 
-// ── View Switching ───────────────────────────────────────────
+/* ── Tab Navigation ──────────────────────────────────────────── */
 
-function switchView(viewName) {
-    // Hide all views
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    // Show target view
-    const target = document.getElementById(`view-${viewName}`);
-    if (target) target.classList.add('active');
-
-    // Update nav
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    const navItem = document.querySelector(`.nav-item[data-view="${viewName}"]`);
-    if (navItem) navItem.classList.add('active');
-
-    // Refresh data for specific views
-    if (viewName === 'dashboard') refreshDashboard();
-    if (viewName === 'reports') refreshReports();
+function switchTab(tabName) {
+    document.querySelectorAll('.tab').forEach(t => {
+        const active = t.dataset.tab === tabName;
+        t.classList.toggle('active', active);
+        t.setAttribute('aria-selected', active);
+    });
+    document.querySelectorAll('.page').forEach(p => {
+        p.classList.toggle('active', p.id === `page-${tabName}`);
+    });
+    if (tabName === 'dashboard') refreshDashboard();
+    if (tabName === 'reports')   refreshReports();
 }
 
-// ── Ingest Tab Switching ─────────────────────────────────────
+document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
 
-function switchIngestTab(tabName) {
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+/* ── Sub-tab (within Ingest) ─────────────────────────────────── */
 
-    const tab = document.getElementById(`tab-${tabName}`);
-    if (tab) tab.classList.add('active');
-
-    event.target.classList.add('active');
+function switchSubTab(name, btn) {
+    document.querySelectorAll('.sub-page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
+    const page = document.getElementById(`sub-${name}`);
+    if (page) page.classList.add('active');
+    if (btn)  btn.classList.add('active');
 }
 
-// ── Toast Notifications ──────────────────────────────────────
-
-function showToast(message, type = 'info') {
-    const container = document.getElementById('toastContainer');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
-    container.appendChild(toast);
-
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateX(20px)';
-        setTimeout(() => toast.remove(), 300);
-    }, 4000);
-}
-
-// ── API Helpers ──────────────────────────────────────────────
+/* ── API Helpers ─────────────────────────────────────────────── */
 
 async function apiGet(path) {
     try {
-        const res = await fetch(`${API_BASE}${path}`);
-        return await res.json();
+        const r = await fetch(`${API}${path}`);
+        return await r.json();
     } catch (e) {
-        console.error(`GET ${path} failed:`, e);
+        console.error('GET', path, e);
         return null;
     }
 }
 
 async function apiPost(path, data) {
     try {
-        const res = await fetch(`${API_BASE}${path}`, {
+        const r = await fetch(`${API}${path}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
         });
-        return await res.json();
+        return await r.json();
     } catch (e) {
-        console.error(`POST ${path} failed:`, e);
+        console.error('POST', path, e);
         return null;
     }
 }
 
-// ── Dashboard ────────────────────────────────────────────────
+/* ── Toast ───────────────────────────────────────────────────── */
+
+function toast(msg, type = 'info') {
+    const c = document.getElementById('toastContainer');
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = msg;
+    c.appendChild(el);
+    setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateX(16px)';
+        el.style.transition = '250ms ease';
+        setTimeout(() => el.remove(), 260);
+    }, 3800);
+}
+
+/* ── Escape ──────────────────────────────────────────────────── */
+
+function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = String(s || '');
+    return d.innerHTML;
+}
+
+/* ── Health Check ────────────────────────────────────────────── */
+
+async function checkHealth() {
+    const dot  = document.getElementById('apiStatus');
+    const lbl  = document.getElementById('apiStatusText');
+    try {
+        const d = await apiGet('/api/health');
+        if (d && d.status === 'healthy') {
+            dot.className = 'status-dot connected';
+            lbl.textContent = 'API Connected';
+        } else {
+            dot.className = 'status-dot disconnected';
+            lbl.textContent = 'API Error';
+        }
+    } catch {
+        dot.className = 'status-dot disconnected';
+        lbl.textContent = 'API Offline';
+    }
+}
+
+/* ── Dashboard ───────────────────────────────────────────────── */
 
 async function refreshDashboard() {
-    const data = await apiGet('/api/v1/cases');
-    if (!data || !data.cases) return;
+    const d = await apiGet('/api/v1/cases');
+    if (!d || !d.cases) return;
+    const cases = d.cases;
 
-    const cases = data.cases;
-    document.getElementById('totalCases').textContent = cases.length;
-    document.getElementById('activeCases').textContent = cases.filter(c => c.status === 'running').length;
+    document.getElementById('totalCases').textContent     = cases.length;
+    document.getElementById('activeCases').textContent    = cases.filter(c => c.status === 'running').length;
     document.getElementById('completedCases').textContent = cases.filter(c => c.status === 'completed').length;
+    document.getElementById('failedCases').textContent    = cases.filter(c => c.status === 'failed').length;
 
     const list = document.getElementById('casesList');
-    if (cases.length === 0) {
-        list.innerHTML = `
-            <div class="empty-state">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
-                <p>No investigations yet</p>
-                <span>Ingest evidence and start your first investigation</span>
-            </div>`;
+    if (!cases.length) {
+        list.innerHTML = `<div class="empty-state">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+            <p>No investigations yet</p>
+            <span>Ingest evidence then start your first investigation</span>
+        </div>`;
         return;
     }
-
-    list.innerHTML = cases.map(c => `
-        <div class="case-card" onclick="viewCase('${c.id}')">
-            <div class="case-info">
-                <h4>${escapeHtml(c.title)}</h4>
-                <span class="case-meta">
-                    ${c.id.substring(0, 8)}... · Round ${c.current_round} · 
-                    ${c.created_at ? new Date(c.created_at).toLocaleDateString() : 'N/A'}
-                </span>
+    list.innerHTML = cases.map(c => {
+        const badgeClass = c.status === 'completed'         ? 'badge-completed'
+                         : c.status === 'running'           ? 'badge-running'
+                         : c.status === 'failed'            ? 'badge-failed'
+                         : c.status === 'evidence_ingested' ? 'badge-ingested'
+                         : 'badge-pending';
+        const badgeLabel = c.status === 'evidence_ingested' ? 'Evidence Ready'
+                         : c.status.replace(/_/g, ' ');
+        const date = c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : 'N/A';
+        const canInvestigate = ['evidence_ingested','pending','failed','completed'].includes(c.status);
+        const canReport = c.status === 'completed';
+        return `<div class="case-item">
+            <div style="flex:1;min-width:0" onclick="openCaseReport('${esc(c.id)}')" style="cursor:pointer">
+                <div class="case-item-title">${esc(c.title)}</div>
+                <div class="case-item-meta">${c.id.substring(0,12)}… &middot; ${date}</div>
             </div>
-            <span class="case-status ${c.status}">${c.status}</span>
-        </div>
-    `).join('');
+            <div style="display:flex;gap:0.5rem;align-items:center;flex-shrink:0">
+                ${canInvestigate ? `<button class="btn-ghost btn-sm" style="font-size:0.72rem;padding:0.25rem 0.6rem" onclick="investigateCase('${esc(c.id)}','${esc(c.title)}')">Investigate</button>` : ''}
+                ${canReport ? `<button class="btn-ghost btn-sm" style="font-size:0.72rem;padding:0.25rem 0.6rem" onclick="openCaseReport('${esc(c.id)}')">Report</button>` : ''}
+                <span class="badge ${badgeClass}">${badgeLabel}</span>
+            </div>
+        </div>`;
+    }).join('');
 }
 
-async function viewCase(caseId) {
-    const data = await apiGet(`/api/v1/report/${caseId}`);
-    if (data && data.data && data.data.report) {
-        renderReport(data.data.report, caseId);
-        switchView('reports');
-    } else {
-        showToast('Report not yet available', 'info');
+async function clearHistory() {
+    if (!confirm('Are you sure you want to clear ALL data? This will delete all cases, evidence, statements, and reports. This action cannot be undone.')) return;
+    toast('Clearing all data…', 'info');
+    try {
+        const r = await fetch(`${API}/api/v1/clear`, { method: 'DELETE' });
+        const result = await r.json();
+        if (result && result.status === 'success') {
+            toast('✓ All data cleared successfully', 'success');
+            refreshDashboard();
+        } else {
+            toast(result?.message || 'Failed to clear data', 'error');
+        }
+    } catch (e) {
+        toast('Failed to clear data — is the server running?', 'error');
     }
 }
 
-// ── Evidence Ingestion ───────────────────────────────────────
+function openCaseReport(caseId) {
+    switchTab('reports');
+    setTimeout(() => loadReport(caseId), 100);
+}
+
+function investigateCase(caseId, title) {
+    // Switch to investigate tab and pre-fill with case details
+    switchTab('investigate');
+    const caseIdField = document.getElementById('invCaseId');
+    const titleField  = document.getElementById('invTitle');
+    if (caseIdField) caseIdField.value = caseId;
+    if (titleField && title) titleField.value = title;
+    // Scroll to the launch button
+    setTimeout(() => {
+        const btn = document.getElementById('launchBtn');
+        if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 200);
+    toast(`Case ${caseId.substring(0,8)}… loaded — set a title and click Launch`, 'info');
+}
+
+/* ── Ingest: Video ───────────────────────────────────────────── */
+
+async function ingestVideo() {
+    const caseId = document.getElementById('videoCaseId').value.trim();
+    const file = document.getElementById('videoFile').files[0];
+
+    if (!file) { toast('Please select a video file', 'error'); return; }
+
+    const btn = document.getElementById('videoUploadBtn');
+    btn.disabled = true;
+    btn.textContent = 'Uploading…';
+
+    const prog = document.getElementById('uploadProgress');
+    const fill = document.getElementById('uploadFill');
+    const lbl  = document.getElementById('uploadLabel');
+    prog.style.display = 'flex';
+
+    // Simulate progress during upload
+    let pct = 0;
+    const ticker = setInterval(() => {
+        pct = Math.min(pct + 4, 85);
+        fill.style.width = pct + '%';
+        lbl.textContent = `Uploading… ${pct}%`;
+    }, 200);
+
+    const fd = new FormData();
+    fd.append('file', file);
+    if (caseId) fd.append('case_id', caseId);
+
+    try {
+        const r = await fetch(`${API}/api/v1/ingest/video`, { method:'POST', body:fd });
+        const result = await r.json();
+        clearInterval(ticker);
+        fill.style.width = '100%';
+        lbl.textContent = 'Processing complete';
+
+        if (result && result.status === 'success') {
+            const assignedCaseId = result.data?.case_id || '';
+            toast(`✓ ${result.message}`, 'success');
+            const displayData = {
+                ...result,
+                data: {
+                    ...result.data,
+                    note: assignedCaseId ? `Linked to Case ID: ${assignedCaseId}` : ''
+                }
+            };
+            showResult('videoResult', displayData, 'success');
+            // Auto-fill the case ID field for reference
+            if (assignedCaseId) {
+                document.getElementById('videoCaseId').value = assignedCaseId;
+            }
+            // Refresh dashboard so the new case appears
+            refreshDashboard();
+        } else {
+            toast(result?.message || 'Video ingestion failed', 'error');
+            showResult('videoResult', result, 'error');
+        }
+    } catch (e) {
+        clearInterval(ticker);
+        toast('Upload failed — is the server running?', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> Upload &amp; Process Video`;
+    }
+}
+
+/* ── Ingest: Logs ────────────────────────────────────────────── */
 
 async function ingestLogs() {
     const content = document.getElementById('logContent').value.trim();
-    const source = document.getElementById('logSource').value.trim();
-    const caseId = document.getElementById('logCaseId').value.trim();
+    const source  = document.getElementById('logSource').value.trim() || 'badge_system';
+    const caseId  = document.getElementById('logCaseId').value.trim();
 
-    if (!content) {
-        showToast('Please enter log data', 'error');
-        return;
-    }
+    if (!content) { toast('Please enter log data', 'error'); return; }
+    try { JSON.parse(content); } catch { toast('Invalid JSON — please check your log data format', 'error'); return; }
 
-    showToast('Processing access logs...', 'info');
-
-    const result = await apiPost('/api/v1/ingest/logs', {
-        content: content,
-        format: 'json',
-        source: source || 'badge_system',
-        case_id: caseId,
-    });
+    toast('Processing access logs…', 'info');
+    const result = await apiPost('/api/v1/ingest/logs', { content, format:'json', source, case_id: caseId || undefined });
 
     if (result && result.status === 'success') {
-        showToast(result.message, 'success');
-        showIngestResult(result);
+        toast(`✓ ${result.message}`, 'success');
+        showResult('logsResult', result, 'success');
     } else {
-        showToast(result?.message || 'Ingestion failed', 'error');
+        toast(result?.message || 'Ingestion failed', 'error');
+        showResult('logsResult', result, 'error');
     }
 }
+
+/* ── Ingest: Statement ───────────────────────────────────────── */
 
 async function ingestStatement() {
-    const text = document.getElementById('stmtText').value.trim();
-    const source = document.getElementById('stmtSource').value.trim();
-    const timestamp = document.getElementById('stmtTimestamp').value;
-    const eventTime = document.getElementById('stmtEventTime').value;
-    const reliability = parseFloat(document.getElementById('stmtReliability').value);
-    const caseId = document.getElementById('stmtCaseId').value.trim();
+    const text        = document.getElementById('stmtText').value.trim();
+    const source      = document.getElementById('stmtSource').value.trim();
+    const timestamp   = document.getElementById('stmtTimestamp').value;
+    const eventTime   = document.getElementById('stmtEventTime').value;
+    const caseId      = document.getElementById('stmtCaseId').value.trim();
 
-    if (!text || !source) {
-        showToast('Please fill in witness name and statement text', 'error');
-        return;
-    }
+    if (!text)   { toast('Please enter the statement text', 'error'); return; }
+    if (!source) { toast('Please enter the witness name', 'error'); return; }
 
-    showToast('Processing witness statement...', 'info');
-
+    toast('Processing witness statement…', 'info');
     const result = await apiPost('/api/v1/ingest/statements', {
-        text: text,
-        source: source,
-        timestamp: timestamp || new Date().toISOString(),
-        event_time: eventTime || null,
-        reliability_score: reliability || 0.7,
-        case_id: caseId,
+        text, source,
+        timestamp:        timestamp  || new Date().toISOString(),
+        event_time:       eventTime  || null,
+        case_id:          caseId    || undefined,
     });
 
     if (result && result.status === 'success') {
-        showToast(result.message, 'success');
-        showIngestResult(result);
+        toast(`✓ ${result.message}`, 'success');
+        showResult('stmtResult', result, 'success');
     } else {
-        showToast(result?.message || 'Ingestion failed', 'error');
+        toast(result?.message || 'Ingestion failed', 'error');
+        showResult('stmtResult', result, 'error');
     }
 }
 
-async function ingestVideo() {
-    showToast('Video ingestion requires file upload — use the API directly at /api/docs', 'info');
-}
+/* ── Shared Result Renderer ──────────────────────────────────── */
 
-function showIngestResult(result) {
-    const panel = document.getElementById('ingestResult');
-    panel.style.display = 'block';
-    panel.className = `result-panel ${result.status}`;
-    panel.innerHTML = `
-        <h4 style="margin-bottom: 0.5rem; color: var(--accent-green);">✓ ${result.message}</h4>
-        <pre style="font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--text-secondary);">${JSON.stringify(result.data, null, 2)}</pre>
+function showResult(id, result, type) {
+    const el = document.getElementById(id);
+    el.style.display = 'block';
+    el.className = `result-card ${type}`;
+    const title = type === 'success' ? (result?.message || 'Success') : (result?.message || 'Error');
+    const data  = result?.data ? JSON.stringify(result.data, null, 2) : '';
+    el.innerHTML = `
+        <div class="result-title">${type === 'success' ? '✓ ' : '✗ '}${esc(title)}</div>
+        ${data ? `<pre class="result-pre">${esc(data)}</pre>` : ''}
     `;
 }
 
-// ── Investigation ────────────────────────────────────────────
+/* ── Investigation ───────────────────────────────────────────── */
 
 async function startInvestigation() {
-    const title = document.getElementById('invTitle').value.trim();
+    const title       = document.getElementById('invTitle').value.trim();
     const description = document.getElementById('invDescription').value.trim();
-    const maxRounds = parseInt(document.getElementById('invMaxRounds').value);
-    const caseId = document.getElementById('invCaseId').value.trim();
+    const maxRounds   = parseInt(document.getElementById('invMaxRounds').value) || 3;
+    const caseId      = document.getElementById('invCaseId').value.trim();
 
-    if (!title) {
-        showToast('Please enter an investigation title', 'error');
-        return;
-    }
+    if (!title) { toast('Please enter an investigation title', 'error'); return; }
 
-    showToast('Launching investigation pipeline...', 'info');
+    const btn = document.getElementById('launchBtn');
+    btn.disabled = true;
+    btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Launching…`;
 
+    toast('Launching investigation pipeline…', 'info');
     const result = await apiPost('/api/v1/investigate/', {
-        case_id: caseId || undefined,
-        title: title,
-        description: description,
-        max_rounds: maxRounds || 3,
+        case_id: caseId || undefined, title, description, max_rounds: maxRounds,
     });
 
     if (result && result.status === 'success') {
-        showToast(`Investigation started: ${result.data.case_id}`, 'success');
-        showProgressPanel(result.data.case_id);
-        pollInvestigationStatus(result.data.case_id);
+        const id = result.data.case_id;
+        currentInvCaseId = id;
+        toast(`Investigation started — ${id.substring(0,8)}…`, 'success');
+        showPipeline(id);
+        pollStatus(id);
     } else {
-        showToast(result?.message || 'Failed to start investigation', 'error');
+        toast(result?.message || 'Failed to start investigation', 'error');
+        btn.disabled = false;
+        btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Launch Investigation`;
     }
 }
 
-function showProgressPanel(caseId) {
-    const panel = document.getElementById('investigationProgress');
-    panel.style.display = 'block';
-    document.getElementById('progressLog').innerHTML = `> Investigation ${caseId.substring(0, 8)}... launched\n`;
-    
-    // Activate first step
-    document.getElementById('step-ingestion').classList.add('active');
+function showPipeline(caseId) {
+    const card = document.getElementById('pipelineCard');
+    card.style.display = 'block';
+    document.getElementById('pipelineCaseId').textContent = `Case: ${caseId}`;
+    document.getElementById('pipelineLog').textContent = `> Investigation ${caseId.substring(0,8)}… launched\n`;
+    document.getElementById('viewReportAction').style.display = 'none';
+    // Reset all steps
+    ['investigation','trajectory','critic','verifier','reporter','completed'].forEach(s => {
+        const el = document.getElementById(`ps-${s}`);
+        if (el) el.className = 'pipeline-step';
+    });
+    // Mark first step active
+    setPipelineStep('investigation');
 }
 
-function updateProgress(phase) {
-    const steps = ['ingestion', 'hypothesis', 'gathering', 'trajectory', 'critic', 'verification', 'report'];
-    const phaseMap = {
-        'investigator': 'gathering',
-        'hypothesis_formation': 'hypothesis',
-        'evidence_gathering': 'gathering',
-        'trajectory': 'trajectory',
-        'critic': 'critic',
-        'verifier': 'verification',
-        'reporter': 'report',
-        'completed': 'report',
-    };
-    
-    const currentStep = phaseMap[phase] || phase;
-    const currentIndex = steps.indexOf(currentStep);
+const PHASE_MAP = {
+    'running':        'investigation',
+    'investigation':  'investigation',
+    'investigator':   'investigation',
+    'trajectory':     'trajectory',
+    'critic':         'critic',
+    'verifier':       'verifier',
+    'reporter':       'reporter',
+    'completed':      'completed',
+};
 
-    steps.forEach((step, i) => {
-        const el = document.getElementById(`step-${step}`);
+const STEP_ORDER = ['investigation','trajectory','critic','verifier','reporter','completed'];
+
+function setPipelineStep(current) {
+    const idx = STEP_ORDER.indexOf(current);
+    STEP_ORDER.forEach((s, i) => {
+        const el = document.getElementById(`ps-${s}`);
         if (!el) return;
-        el.classList.remove('active', 'done');
-        if (i < currentIndex) el.classList.add('done');
-        else if (i === currentIndex) el.classList.add('active');
+        el.className = 'pipeline-step' + (i < idx ? ' done' : i === idx ? ' active' : '');
     });
 }
 
-async function pollInvestigationStatus(caseId) {
-    const log = document.getElementById('progressLog');
+async function pollStatus(caseId) {
+    const log = document.getElementById('pipelineLog');
     let prevPhase = '';
+    let pollCount = 0;
+    const MAX_POLLS = 200; // safety
 
-    const poll = setInterval(async () => {
-        const data = await apiGet(`/api/v1/investigate/${caseId}`);
-        if (!data || !data.data) return;
+    const timer = setInterval(async () => {
+        pollCount++;
+        if (pollCount > MAX_POLLS) { clearInterval(timer); return; }
 
-        const { status, phase } = data.data;
+        const d = await apiGet(`/api/v1/investigate/${caseId}`);
+        if (!d || !d.data) return;
+        const { status, phase, current_round } = d.data;
 
+        const mappedPhase = PHASE_MAP[phase] || phase;
         if (phase !== prevPhase) {
-            log.innerHTML += `> Phase: ${phase} (Round ${data.data.current_round || '?'})\n`;
+            log.textContent += `> [Round ${current_round || '?'}] ${phase}\n`;
             log.scrollTop = log.scrollHeight;
-            updateProgress(phase);
+            setPipelineStep(mappedPhase);
             prevPhase = phase;
         }
 
         if (status === 'completed') {
-            clearInterval(poll);
-            log.innerHTML += `> ✓ Investigation completed successfully\n`;
-            showToast('Investigation completed! View the report.', 'success');
-            updateProgress('completed');
+            clearInterval(timer);
+            setPipelineStep('completed');
+            log.textContent += `> ✓ Investigation completed\n`;
+            log.scrollTop = log.scrollHeight;
+            toast('Investigation complete — report ready!', 'success');
+            document.getElementById('viewReportAction').style.display = 'flex';
+            document.getElementById('launchBtn').disabled = false;
+            document.getElementById('launchBtn').innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Launch Investigation`;
         } else if (status === 'failed') {
-            clearInterval(poll);
-            log.innerHTML += `> ✗ Investigation failed\n`;
-            showToast('Investigation failed. Check logs.', 'error');
+            clearInterval(timer);
+            log.textContent += `> ✗ Investigation failed\n`;
+            log.scrollTop = log.scrollHeight;
+            toast('Investigation failed. Check server logs.', 'error');
+            document.getElementById('launchBtn').disabled = false;
+            document.getElementById('launchBtn').innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Launch Investigation`;
         }
     }, 3000);
 }
 
-// ── Reports ──────────────────────────────────────────────────
+function goToReport() {
+    if (!currentInvCaseId) return;
+    switchTab('reports');
+    setTimeout(() => loadReport(currentInvCaseId), 150);
+}
+
+/* ── Reports ─────────────────────────────────────────────────── */
 
 async function refreshReports() {
-    const data = await apiGet('/api/v1/cases');
-    if (!data || !data.cases) return;
+    const d = await apiGet('/api/v1/cases');
+    if (!d || !d.cases) return;
+    const completed = d.cases.filter(c => c.status === 'completed');
+    const list = document.getElementById('reportsCaseList');
 
-    const completed = data.cases.filter(c => c.status === 'completed');
-    const container = document.getElementById('reportContent');
-
-    if (completed.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                <p>No completed reports</p>
-                <span>Complete an investigation to generate a report</span>
-            </div>`;
+    if (!completed.length) {
+        list.innerHTML = `<div class="empty-state">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+            <p>No completed reports</p><span>Finish an investigation first</span>
+        </div>`;
         return;
     }
 
-    // Show first completed report
-    const report = await apiGet(`/api/v1/report/${completed[0].id}`);
-    if (report?.data?.report) {
-        renderReport(report.data.report, completed[0].id);
+    list.innerHTML = completed.map(c => `
+        <div class="report-case-item" id="rci-${c.id}" onclick="loadReport('${esc(c.id)}')">
+            <div>
+                <div class="report-case-item-title">${esc(c.title)}</div>
+                <div class="report-case-item-id">${c.id.substring(0,14)}…</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function loadReport(caseId) {
+    // Highlight selected case
+    document.querySelectorAll('.report-case-item').forEach(el => {
+        el.classList.toggle('selected', el.id === `rci-${caseId}`);
+    });
+
+    document.getElementById('reportEmpty').style.display = 'none';
+    const viewer = document.getElementById('reportContent');
+    viewer.style.display = 'block';
+    viewer.innerHTML = `<div class="card"><div class="empty-state"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg><p>Loading report…</p></div></div>`;
+
+    const d = await apiGet(`/api/v1/report/${caseId}`);
+    if (!d || d.status !== 'success' || !d.data?.report) {
+        viewer.innerHTML = `<div class="card"><div class="empty-state"><p style="color:var(--red)">Report not available: ${esc(d?.message || 'Unknown error')}</p></div></div>`;
+        return;
     }
+    renderReport(d.data.report, caseId);
 }
 
 function renderReport(report, caseId) {
-    const container = document.getElementById('reportContent');
+    const viewer = document.getElementById('reportContent');
+    const confidence = report.confidence_assessment?.overall_confidence
+        ?? report.primary_conclusion?.confidence ?? 0;
+    const pct = Math.round(confidence * 100);
+    const confClass = pct >= 70 ? 'conf-high' : pct >= 40 ? 'conf-med' : 'conf-low';
+    const confColor = pct >= 70 ? 'var(--green)' : pct >= 40 ? 'var(--amber)' : 'var(--red)';
 
-    const confidence = report.confidence_assessment?.overall_confidence || 
-                       report.primary_conclusion?.confidence || 0;
-    const confLevel = confidence > 0.7 ? 'high' : confidence > 0.4 ? 'medium' : 'low';
+    // Build timeline section
+    let timelineHtml = '';
+    if (report.timeline?.length) {
+        timelineHtml = `<div class="report-section">
+            <div class="report-section-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Evidence Timeline</div>
+            ${report.timeline.map(item => {
+                const isInferred  = item.is_inferred  === true || item.inferred === true;
+                const isConfirmed = item.is_confirmed !== false;
+                const tag = isInferred
+                    ? `<span class="tag tag-inferred">INFERRED</span>`
+                    : `<span class="tag tag-observed">OBSERVED</span>`;
+                const unconf = !isConfirmed ? `<span class="tag tag-unconfirmed">UNCONFIRMED</span>` : '';
+                return `<div class="timeline-item">
+                    <div class="timeline-time">${esc(item.time || item.timestamp || '?')}</div>
+                    <div class="timeline-event">${esc(item.event || item.description || '')}${tag}${unconf}</div>
+                </div>`;
+            }).join('')}
+        </div>`;
+    }
 
-    container.innerHTML = `
-        <div class="report-section">
-            <h3>📋 ${escapeHtml(report.title || 'Investigation Report')}</h3>
-            <p style="color: var(--text-secondary); line-height: 1.7;">${escapeHtml(report.summary || 'No summary available.')}</p>
-        </div>
+    // Critic findings / unresolved objections
+    let objHtml = '';
+    const objections = report.unresolved_objections || report.critic_findings || [];
+    if (objections.length) {
+        objHtml = `<div class="report-section">
+            <div class="report-section-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Critic Findings &amp; Unresolved Objections</div>
+            ${objections.map(o => {
+                const sev = o.severity ? `<span class="objection-severity">[${esc(o.severity)}]</span>` : '';
+                const text = o.objection || o.objection_text || o.finding || '';
+                return `<div class="objection-card">${sev}${esc(text)}</div>`;
+            }).join('')}
+        </div>`;
+    }
 
-        <div class="report-section">
-            <h3>🎯 Primary Conclusion</h3>
-            <p style="margin-bottom: 0.5rem;">${escapeHtml(report.primary_conclusion?.hypothesis || 'No conclusion reached.')}</p>
-            <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 1.1rem;">${(confidence * 100).toFixed(0)}%</span>
-                <div class="confidence-bar" style="flex: 1;">
-                    <div class="confidence-fill confidence-${confLevel}" style="width: ${confidence * 100}%"></div>
+    // Alternative / rejected hypotheses
+    let altHtml = '';
+    const alts = report.alternative_hypotheses || report.rejected_hypotheses || [];
+    if (alts.length) {
+        altHtml = `<div class="report-section">
+            <div class="report-section-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> Considered &amp; Rejected Hypotheses</div>
+            ${alts.map(h => `
+                <div class="hypothesis-card">
+                    <div class="hypothesis-title">${esc(h.hypothesis || h.title || 'Hypothesis')}</div>
+                    <div class="hypothesis-reason">${esc(h.rejection_reason || h.reason || '')}</div>
+                </div>
+            `).join('')}
+        </div>`;
+    }
+
+    // Metadata
+    let metaHtml = '';
+    if (report.metadata) {
+        metaHtml = `<div class="report-section">
+            <div class="report-section-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M3 9h18M9 21V9"></path></svg> Analysis Metadata</div>
+            <div class="meta-grid">${Object.entries(report.metadata).map(([k,v]) => `
+                <div class="meta-item">
+                    <div class="meta-key">${esc(k.replace(/_/g,' '))}</div>
+                    <div class="meta-val">${esc(v)}</div>
+                </div>
+            `).join('')}</div>
+        </div>`;
+    }
+
+    viewer.innerHTML = `
+        <div class="card report-section">
+            <div class="report-section-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg> ${esc(report.title || 'Investigation Report')}</div>
+            <p style="color:var(--text-secondary);line-height:1.7;font-size:0.88rem;margin-bottom:1.25rem">${esc(report.summary || 'No summary available.')}</p>
+
+            <div class="report-section-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg> Primary Conclusion</div>
+            <p style="font-size:0.9rem;font-weight:600;color:var(--text-primary);margin-bottom:1rem">${esc(report.primary_conclusion?.hypothesis || report.primary_conclusion?.title || 'No conclusion reached.')}</p>
+
+            <div class="confidence-row">
+                <div class="confidence-num" style="color:${confColor}">${pct}%</div>
+                <div style="flex:1">
+                    <div style="font-size:0.73rem;color:var(--text-muted);margin-bottom:0.35rem">Overall Confidence</div>
+                    <div class="confidence-track"><div class="confidence-fill ${confClass}" style="width:${pct}%"></div></div>
                 </div>
             </div>
         </div>
 
-        ${report.timeline ? `
-        <div class="report-section">
-            <h3>🕐 Timeline</h3>
-            ${report.timeline.map(item => `
-                <div style="display: flex; gap: 0.75rem; margin-bottom: 0.75rem; padding: 0.5rem; background: var(--bg-primary); border-radius: var(--radius-sm);">
-                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--accent-cyan); min-width: 60px;">${item.time || '?'}</span>
-                    <div>
-                        <span>${escapeHtml(item.event || '')}</span>
-                        ${item.is_inferred ? '<span class="tag inferred">inferred</span>' : ''}
-                        ${!item.is_confirmed ? '<span class="tag unconfirmed">unconfirmed</span>' : ''}
-                    </div>
-                </div>
-            `).join('')}
-        </div>` : ''}
+        ${timelineHtml ? `<div class="card">${timelineHtml}</div>` : ''}
+        ${objHtml      ? `<div class="card">${objHtml}</div>`      : ''}
+        ${altHtml      ? `<div class="card">${altHtml}</div>`      : ''}
+        ${metaHtml     ? `<div class="card">${metaHtml}</div>`     : ''}
 
-        ${report.unresolved_objections?.length ? `
-        <div class="report-section">
-            <h3>⚠️ Unresolved Objections</h3>
-            ${report.unresolved_objections.map(obj => `
-                <div class="objection-card ${obj.severity === 'CRITICAL' ? 'critical' : ''}">
-                    <strong style="color: var(--accent-amber);">[${obj.severity}]</strong> 
-                    ${escapeHtml(obj.objection || obj.objection_text || '')}
-                </div>
-            `).join('')}
-        </div>` : ''}
-
-        ${report.alternative_hypotheses?.length ? `
-        <div class="report-section">
-            <h3>🚫 Considered & Rejected</h3>
-            ${report.alternative_hypotheses.map(h => `
-                <div style="padding: 0.5rem; margin-bottom: 0.5rem; background: var(--bg-primary); border-radius: var(--radius-sm);">
-                    <strong>${escapeHtml(h.hypothesis || h.title || '')}</strong>
-                    <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 0.25rem;">${escapeHtml(h.rejection_reason || '')}</p>
-                </div>
-            `).join('')}
-        </div>` : ''}
-
-        ${report.metadata ? `
-        <div class="report-section">
-            <h3>📊 Metadata</h3>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.5rem;">
-                ${Object.entries(report.metadata).map(([k, v]) => `
-                    <div style="padding: 0.5rem; background: var(--bg-primary); border-radius: var(--radius-sm);">
-                        <span style="font-size: 0.72rem; color: var(--text-muted); display: block;">${k.replace(/_/g, ' ')}</span>
-                        <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">${v}</span>
-                    </div>
-                `).join('')}
-            </div>
-        </div>` : ''}
+        <div style="font-size:0.73rem;color:var(--text-muted);text-align:right;margin-top:0.5rem;font-family:'JetBrains Mono',monospace">
+            Case: ${esc(caseId)}
+        </div>
     `;
 }
 
-// ── Counterfactual ───────────────────────────────────────────
+/* ── Counterfactual ──────────────────────────────────────────── */
 
 async function runCounterfactual() {
-    const caseId = document.getElementById('cfCaseId').value.trim();
+    const caseId     = document.getElementById('cfCaseId').value.trim();
     const evidenceId = document.getElementById('cfEvidenceId').value.trim();
 
     if (!caseId || !evidenceId) {
-        showToast('Please enter both Case ID and Evidence ID', 'error');
+        toast('Please enter both a Case ID and Evidence ID', 'error');
         return;
     }
 
-    showToast('Running counterfactual analysis...', 'info');
-
+    toast('Running what-if analysis…', 'info');
     const result = await apiPost('/api/v1/counterfactual/', {
-        case_id: caseId,
-        removed_evidence_id: evidenceId,
+        case_id: caseId, removed_evidence_id: evidenceId,
     });
 
     const panel = document.getElementById('cfResult');
     panel.style.display = 'block';
 
     if (result && result.status === 'success') {
-        const data = result.data;
+        const d = result.data;
+        const origConf = ((d.original_leading?.confidence || 0) * 100).toFixed(0);
+        const cfConf   = ((d.counterfactual_leading?.confidence || 0) * 100).toFixed(0);
+        const changed  = d.conclusion_changed;
+
         panel.innerHTML = `
-            <h4 style="margin-bottom: 1rem;">Counterfactual Result</h4>
-            <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
-                <div style="flex:1; padding: 1rem; background: var(--bg-primary); border-radius: var(--radius-sm);">
-                    <span style="font-size: 0.75rem; color: var(--text-muted);">Original Conclusion</span>
-                    <p style="font-weight: 600;">${escapeHtml(data.original_leading?.title || 'None')}</p>
-                    <span style="font-family: 'JetBrains Mono', monospace; color: var(--accent-cyan);">${((data.original_leading?.confidence || 0) * 100).toFixed(0)}%</span>
+            <div class="card">
+                <div class="report-section-title" style="margin-bottom:1rem">What-If Result</div>
+                <div class="cf-grid">
+                    <div class="cf-box">
+                        <div class="cf-box-label">Original Conclusion</div>
+                        <div class="cf-box-title">${esc(d.original_leading?.title || d.original_leading?.hypothesis || 'N/A')}</div>
+                        <div class="cf-confidence" style="color:var(--accent)">${origConf}%</div>
+                    </div>
+                    <div class="cf-box">
+                        <div class="cf-box-label">Without Evidence ${esc(evidenceId)}</div>
+                        <div class="cf-box-title">${esc(d.counterfactual_leading?.title || d.counterfactual_leading?.hypothesis || 'N/A')}</div>
+                        <div class="cf-confidence" style="color:var(--purple)">${cfConf}%</div>
+                    </div>
                 </div>
-                <div style="flex:1; padding: 1rem; background: var(--bg-primary); border-radius: var(--radius-sm);">
-                    <span style="font-size: 0.75rem; color: var(--text-muted);">Counterfactual Conclusion</span>
-                    <p style="font-weight: 600;">${escapeHtml(data.counterfactual_leading?.title || 'None')}</p>
-                    <span style="font-family: 'JetBrains Mono', monospace; color: var(--accent-purple);">${((data.counterfactual_leading?.confidence || 0) * 100).toFixed(0)}%</span>
+                <div class="cf-verdict ${changed ? 'cf-changed' : 'cf-unchanged'}">
+                    ${changed
+                        ? '⚠️  Conclusion CHANGED — this evidence is critical to the investigation'
+                        : '✓  Conclusion unchanged — the investigation is robust to this evidence removal'}
                 </div>
-            </div>
-            <div style="padding: 0.75rem; background: ${data.conclusion_changed ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)'}; border-radius: var(--radius-sm); font-weight: 600;">
-                ${data.conclusion_changed ? '⚠️ Conclusion CHANGED — this evidence is critical!' : '✓ Conclusion unchanged — robust to this evidence removal.'}
             </div>
         `;
     } else {
-        panel.innerHTML = `<p style="color: var(--accent-red);">Analysis failed: ${result?.message || 'Unknown error'}</p>`;
+        panel.innerHTML = `<div class="card"><p style="color:var(--red)">Analysis failed: ${esc(result?.message || 'Unknown error')}</p></div>`;
     }
 }
 
-// ── Utilities ────────────────────────────────────────────────
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text || '';
-    return div.innerHTML;
-}
-
-// ── File Upload Handler ──────────────────────────────────────
+/* ── Drop Zone ───────────────────────────────────────────────── */
 
 document.addEventListener('DOMContentLoaded', () => {
     const dropZone = document.getElementById('videoDropZone');
     const fileInput = document.getElementById('videoFile');
+    const dropText  = document.getElementById('dropText');
 
     if (dropZone && fileInput) {
         dropZone.addEventListener('click', () => fileInput.click());
         dropZone.addEventListener('dragover', e => {
             e.preventDefault();
-            dropZone.style.borderColor = 'var(--accent-blue)';
+            dropZone.classList.add('drag-over');
         });
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.style.borderColor = 'var(--border-medium)';
-        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
         dropZone.addEventListener('drop', e => {
             e.preventDefault();
-            dropZone.style.borderColor = 'var(--border-medium)';
+            dropZone.classList.remove('drag-over');
             if (e.dataTransfer.files.length) {
                 fileInput.files = e.dataTransfer.files;
-                dropZone.querySelector('p').textContent = e.dataTransfer.files[0].name;
+                dropText.innerHTML = `<strong>${esc(e.dataTransfer.files[0].name)}</strong> selected`;
+            }
+        });
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length) {
+                dropText.innerHTML = `<strong>${esc(fileInput.files[0].name)}</strong> selected`;
             }
         });
     }
 
-    // Check API health
-    checkApiHealth();
-    // Load dashboard
+    checkHealth();
     refreshDashboard();
+    setInterval(checkHealth, 30000);
 });
-
-async function checkApiHealth() {
-    const dot = document.getElementById('apiStatus');
-    const text = document.getElementById('apiStatusText');
-
-    try {
-        const data = await apiGet('/api/health');
-        if (data && data.status === 'healthy') {
-            dot.className = 'status-dot connected';
-            text.textContent = 'API Connected';
-        } else {
-            dot.className = 'status-dot disconnected';
-            text.textContent = 'API Error';
-        }
-    } catch {
-        dot.className = 'status-dot disconnected';
-        text.textContent = 'API Offline';
-    }
-}
