@@ -46,6 +46,10 @@ class CounterfactualRequest(BaseModel):
     removed_evidence_id: str
 
 
+class QARequest(BaseModel):
+    question: str
+
+
 # ── Response Schemas ──────────────────────────────────────────
 
 

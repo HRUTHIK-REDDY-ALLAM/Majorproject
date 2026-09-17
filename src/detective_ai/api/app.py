@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from detective_ai.api.routes.ingest import router as ingest_router
 from detective_ai.api.routes.investigate import router as investigate_router
+from detective_ai.api.routes.qa import router as qa_router
 from detective_ai.api.routes.report import counterfactual_router, report_router
 from detective_ai.config import settings
 from detective_ai.storage.database import db
@@ -43,6 +44,7 @@ app.include_router(ingest_router)
 app.include_router(investigate_router)
 app.include_router(report_router)
 app.include_router(counterfactual_router)
+app.include_router(qa_router)
 
 
 # ── Static Files (Frontend) ──────────────────────────────────
