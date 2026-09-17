@@ -34,7 +34,9 @@ async def ask_question(case_id: str, request: QARequest):
 
     from detective_ai.config import settings
     from detective_ai.storage.database import (
-        EvidenceRow, WitnessStatementRow, AccessLogRow,
+        AccessLogRow,
+        EvidenceRow,
+        WitnessStatementRow,
     )
 
     # ── Validate case exists and is completed ────────────────────────────
@@ -120,7 +122,7 @@ async def ask_question(case_id: str, request: QARequest):
         # Access logs
         logs = session.query(AccessLogRow).all()
         if logs:
-            context_parts.append(f"\n## Access Control Logs")
+            context_parts.append("\n## Access Control Logs")
             for log in logs[:15]:
                 context_parts.append(
                     f"- {log.person_name or log.person_id} @ {log.location} "

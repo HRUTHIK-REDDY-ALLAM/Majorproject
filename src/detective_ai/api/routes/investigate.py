@@ -133,7 +133,10 @@ async def start_investigation(
 
     with db.session() as session:
         from detective_ai.storage.database import (
-            EvidenceRow, WitnessStatementRow, AccessLogRow, VisualDetectionRow,
+            AccessLogRow,
+            EvidenceRow,
+            VisualDetectionRow,
+            WitnessStatementRow,
         )
 
         # Get all evidence rows and filter by case_id in Python (SQLite JSON compat)
