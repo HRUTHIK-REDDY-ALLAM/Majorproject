@@ -39,6 +39,10 @@
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                 Reports
             </button>
+            <button class="tab" data-tab="ask" role="tab" id="tab-ask">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                Ask
+            </button>
             <button class="tab" data-tab="whatif" role="tab" id="tab-whatif">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                 What-If
@@ -310,6 +314,38 @@
                         <div class="empty-state"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg><p>Select a case to view its report</p></div>
                     </div>
                     <div id="reportContent" style="display:none"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ASK QUESTIONS -->
+        <section class="page" id="page-ask">
+            <div class="page-header">
+                <h1>Ask About Your Investigation</h1>
+                <p class="page-subtitle">Ask natural-language questions about a completed investigation — e.g., "Where did the person go?" or "What happened at 10:32?"</p>
+            </div>
+            <div class="qa-layout">
+                <div class="card qa-sidebar">
+                    <h2 class="card-title" style="margin-bottom:1rem">Select Case</h2>
+                    <div id="qaCaseList">
+                        <div class="empty-state"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg><p>No cases yet</p><span>Complete an investigation first</span></div>
+                    </div>
+                </div>
+                <div class="card qa-main">
+                    <div class="qa-chat" id="qaChat">
+                        <div class="empty-state" id="qaEmpty">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                            <p>Select a case and ask a question</p>
+                            <span>Try: "What happened?" or "Where did the person go?"</span>
+                        </div>
+                    </div>
+                    <div class="qa-input-row">
+                        <input class="form-input qa-input" type="text" id="qaQuestion" placeholder="Ask a question about the investigation…" autocomplete="off" onkeydown="if(event.key==='Enter')askQuestion()">
+                        <button class="btn-primary" id="qaAskBtn" onclick="askQuestion()">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                            Ask
+                        </button>
+                    </div>
                 </div>
             </div>
         </section>

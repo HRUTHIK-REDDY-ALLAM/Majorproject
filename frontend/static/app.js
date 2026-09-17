@@ -19,6 +19,7 @@ function switchTab(tabName) {
     });
     if (tabName === 'dashboard') refreshDashboard();
     if (tabName === 'reports')   refreshReports();
+    if (tabName === 'ask')       refreshQACases();
 }
 
 document.querySelectorAll('.tab').forEach(btn => {
@@ -578,6 +579,104 @@ function renderReport(report, caseId) {
             Case: ${esc(caseId)}
         </div>
     `;
+}
+
+/* ── Q&A — Ask Questions ─────────────────────────────────────── */
+
+let selectedQACaseId = null;
+
+async function refreshQACases() {
+    const d = await apiGet('/api/v1/cases');
+    if (!d || !d.cases) return;
+    const cases = d.cases.filter(c => ['completed', 'evidence_ingested', 'running', 'failed'].includes(c.status));
+    const list = document.getElementById('qaCaseList');
+
+    if (!cases.length) {
+        list.innerHTML = `<div class="empty-state"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg><p>No cases yet</p><span>Complete an investigation first</span></div>`;
+        return;
+    }
+
+    list.innerHTML = cases.map(c => {
+        const sel = c.id === selectedQACaseId ? 'selected' : '';
+        const badge = c.status === 'completed' ? '<span class="badge badge-completed">Completed</span>' : `<span class="badge badge-pending">${esc(c.status)}</span>`;
+        return `<div class="report-case-item ${sel}" onclick="selectQACase('${esc(c.id)}')">
+            <div>
+                <div class="report-case-item-title">${esc(c.title)}</div>
+                <div class="report-case-item-id">${c.id.substring(0,14)}…</div>
+            </div>
+            ${badge}
+        </div>`;
+    }).join('');
+}
+
+function selectQACase(caseId) {
+    selectedQACaseId = caseId;
+    // Highlight selected
+    document.querySelectorAll('#qaCaseList .report-case-item').forEach(el => {
+        el.classList.toggle('selected', el.onclick?.toString().includes(caseId));
+    });
+    refreshQACases();
+    // Clear chat and show ready state
+    const chat = document.getElementById('qaChat');
+    const empty = document.getElementById('qaEmpty');
+    if (empty) empty.style.display = 'none';
+    // Don't clear existing messages — let them persist
+    toast(`Case ${caseId.substring(0,8)}… selected — ask your question`, 'info');
+}
+
+async function askQuestion() {
+    const question = document.getElementById('qaQuestion').value.trim();
+    if (!question) { toast('Please type a question', 'error'); return; }
+    if (!selectedQACaseId) { toast('Please select a case first', 'error'); return; }
+
+    const chat = document.getElementById('qaChat');
+    const emptyEl = document.getElementById('qaEmpty');
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    // Add user question bubble
+    chat.innerHTML += `<div class="qa-bubble qa-user"><div class="qa-bubble-label">You</div><div class="qa-bubble-text">${esc(question)}</div></div>`;
+
+    // Add thinking indicator
+    const thinkingId = 'qa-thinking-' + Date.now();
+    chat.innerHTML += `<div class="qa-bubble qa-ai" id="${thinkingId}"><div class="qa-bubble-label">Detective AI</div><div class="qa-bubble-text qa-thinking">Analyzing evidence…</div></div>`;
+    chat.scrollTop = chat.scrollHeight;
+
+    // Clear input
+    document.getElementById('qaQuestion').value = '';
+    document.getElementById('qaAskBtn').disabled = true;
+
+    // Call API
+    const result = await apiPost(`/api/v1/qa/${selectedQACaseId}`, { question });
+
+    // Remove thinking indicator
+    const thinkingEl = document.getElementById(thinkingId);
+
+    if (result && result.status === 'success' && result.data) {
+        const answer = result.data.answer || 'No answer available.';
+        const confidence = result.data.confidence || 'medium';
+        const evidence = result.data.evidence_used || [];
+
+        let evidenceHtml = '';
+        if (evidence.length) {
+            evidenceHtml = `<div class="qa-evidence"><div class="qa-evidence-label">Evidence used:</div>${evidence.map(e => `<div class="qa-evidence-item">• ${esc(e)}</div>`).join('')}</div>`;
+        }
+
+        const confBadge = confidence === 'high' ? 'badge-completed'
+                        : confidence === 'medium' ? 'badge-running'
+                        : 'badge-failed';
+
+        if (thinkingEl) {
+            thinkingEl.innerHTML = `<div class="qa-bubble-label">Detective AI <span class="badge ${confBadge}" style="font-size:0.65rem;margin-left:0.5rem">${esc(confidence)} confidence</span></div><div class="qa-bubble-text">${esc(answer)}</div>${evidenceHtml}`;
+        }
+    } else {
+        const errMsg = result?.message || 'Failed to get an answer. Check server logs.';
+        if (thinkingEl) {
+            thinkingEl.innerHTML = `<div class="qa-bubble-label">Detective AI</div><div class="qa-bubble-text" style="color:var(--red)">${esc(errMsg)}</div>`;
+        }
+    }
+
+    document.getElementById('qaAskBtn').disabled = false;
+    chat.scrollTop = chat.scrollHeight;
 }
 
 /* ── Counterfactual ──────────────────────────────────────────── */

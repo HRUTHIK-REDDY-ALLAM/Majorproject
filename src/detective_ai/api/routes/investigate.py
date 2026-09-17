@@ -132,7 +132,9 @@ async def start_investigation(
     evidence_count = 0
 
     with db.session() as session:
-        from detective_ai.storage.database import EvidenceRow, WitnessStatementRow, AccessLogRow
+        from detective_ai.storage.database import (
+            EvidenceRow, WitnessStatementRow, AccessLogRow, VisualDetectionRow,
+        )
 
         # Get all evidence rows and filter by case_id in Python (SQLite JSON compat)
         all_evidence = session.query(EvidenceRow).all()
@@ -147,15 +149,74 @@ async def start_investigation(
 
         evidence_count = len(evidence_rows)
         evidence_ids = [r.id for r in evidence_rows]
-        summaries = [
-            f"- [{r.type}] {r.source} @ {r.timestamp}: {r.description[:100]}"
-            for r in evidence_rows[:20]
-        ]
 
-        # Also include witness statements for this case
+        summaries = []
+
+        # ── Video analysis summaries (most important — these contain the narrative)
+        video_summaries = [
+            r for r in evidence_rows
+            if (r.metadata_ or {}).get("is_video_summary")
+        ]
+        for vs in video_summaries:
+            summaries.append(f"### Video Analysis\n{vs.description}")
+
+        # ── Frame-level observations (only frames with detections)
+        frame_evidence = [
+            r for r in evidence_rows
+            if r.type == "video_frame"
+            and not (r.metadata_ or {}).get("is_video_summary")
+            and (r.metadata_ or {}).get("person_count", 0) > 0
+        ]
+        if frame_evidence:
+            summaries.append(f"\n### Frame-Level Observations ({len(frame_evidence)} frames with people)")
+            for r in frame_evidence[:15]:
+                summaries.append(f"- {r.description}")
+
+        # ── Visual detections summary
+        all_detections = session.query(VisualDetectionRow).all()
+        case_detections = [
+            d for d in all_detections
+            if d.evidence_id in evidence_ids
+        ]
+        if case_detections:
+            person_dets = [d for d in case_detections if d.label == "person"]
+            vehicle_dets = [d for d in case_detections if d.label == "vehicle"]
+            summaries.append(
+                f"\n### Detection Statistics\n"
+                f"- Total person detections: {len(person_dets)}\n"
+                f"- Total vehicle detections: {len(vehicle_dets)}\n"
+                f"- Cameras involved: {', '.join(str(d.camera_id) for d in case_detections)}"
+            )
+
+        # ── Access logs
+        access_logs = session.query(AccessLogRow).all()
+        if access_logs:
+            summaries.append(f"\n### Access Control Logs ({len(access_logs)} entries)")
+            for log in access_logs[:10]:
+                summaries.append(
+                    f"- {log.person_name or log.person_id} @ {log.location} "
+                    f"({log.action}) at {log.timestamp}"
+                )
+
+        # ── Witness statements
         stmts = session.query(WitnessStatementRow).all()
-        for s in stmts[:5]:
-            summaries.append(f"- [statement] {s.source}: {s.text[:100]}")
+        if stmts:
+            summaries.append(f"\n### Witness Statements ({len(stmts)} statements)")
+            for s in stmts[:5]:
+                summaries.append(
+                    f"- {s.source} (reliability: {s.reliability_score:.0%}): "
+                    f'"{s.text[:200]}"'
+                )
+
+        # ── Non-video evidence
+        other_evidence = [
+            r for r in evidence_rows
+            if r.type != "video_frame"
+        ]
+        if other_evidence:
+            summaries.append(f"\n### Other Evidence ({len(other_evidence)} items)")
+            for r in other_evidence[:10]:
+                summaries.append(f"- [{r.type}] {r.source} @ {r.timestamp}: {r.description[:150]}")
 
         evidence_summary = "\n".join(summaries) if summaries else "No evidence ingested yet."
 
