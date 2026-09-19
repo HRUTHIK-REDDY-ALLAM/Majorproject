@@ -34,7 +34,9 @@ async def ask_question(case_id: str, request: QARequest):
 
     from detective_ai.config import settings
     from detective_ai.storage.database import (
-        EvidenceRow, WitnessStatementRow, AccessLogRow,
+        AccessLogRow,
+        EvidenceRow,
+        WitnessStatementRow,
     )
 
     # ── Validate case exists and is completed ────────────────────────────
@@ -50,7 +52,11 @@ async def ask_question(case_id: str, request: QARequest):
             if (r.metadata_ or {}).get("case_id") == case_id
         ]
         if not evidence_rows:
-            evidence_rows = all_evidence
+            # Fall back only to untagged evidence, never another case's.
+            evidence_rows = [
+                r for r in all_evidence
+                if not (r.metadata_ or {}).get("case_id")
+            ]
 
         # Build comprehensive evidence context for the LLM
         context_parts = []
@@ -98,29 +104,50 @@ async def ask_question(case_id: str, request: QARequest):
             for vs in video_summaries:
                 context_parts.append(str(vs.description))
 
-        # Frame-level observations with people
-        frame_obs = [
-            r for r in evidence_rows
-            if r.type == "video_frame"
-            and not (r.metadata_ or {}).get("is_video_summary")
-            and (r.metadata_ or {}).get("person_count", 0) > 0
-        ]
-        if frame_obs:
-            context_parts.append(f"\n## Frame Observations ({len(frame_obs)} frames with people)")
-            for r in frame_obs[:20]:
+        # Per-window scene observations from the vision model
+        segment_rows = sorted(
+            (r for r in evidence_rows if (r.metadata_ or {}).get("is_video_segment")),
+            key=lambda r: (r.metadata_ or {}).get("segment_index", 0),
+        )
+        if segment_rows:
+            context_parts.append(
+                f"\n## Observed Scene Content ({len(segment_rows)} time windows)"
+            )
+            for r in segment_rows:
                 context_parts.append(f"- {r.description}")
 
-        # Witness statements
-        stmts = session.query(WitnessStatementRow).all()
+        # Raw detections only matter when there is no scene understanding
+        if not segment_rows:
+            frame_obs = [
+                r for r in evidence_rows
+                if r.type == "video_frame"
+                and not (r.metadata_ or {}).get("is_video_summary")
+                and (r.metadata_ or {}).get("person_count", 0) > 0
+            ]
+            if frame_obs:
+                context_parts.append(
+                    f"\n## Frame Detections ({len(frame_obs)} frames with detections)"
+                )
+                for r in frame_obs[:20]:
+                    context_parts.append(f"- {r.description}")
+
+        # Witness statements (scoped to this case)
+        stmts = [
+            r for r in session.query(WitnessStatementRow).all()
+            if (r.metadata_ or {}).get("case_id") == case_id
+        ]
         if stmts:
             context_parts.append("\n## Witness Statements")
             for s in stmts[:10]:
                 context_parts.append(f"- {str(s.source)}: \"{str(s.text)[:300]}\"")
 
-        # Access logs
-        logs = session.query(AccessLogRow).all()
+        # Access logs (scoped to this case)
+        logs = [
+            r for r in session.query(AccessLogRow).all()
+            if (r.metadata_ or {}).get("case_id") == case_id
+        ]
         if logs:
-            context_parts.append(f"\n## Access Control Logs")
+            context_parts.append("\n## Access Control Logs")
             for log in logs[:15]:
                 context_parts.append(
                     f"- {log.person_name or log.person_id} @ {log.location} "

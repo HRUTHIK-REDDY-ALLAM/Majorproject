@@ -18,6 +18,7 @@ import numpy as np
 from detective_ai.config import settings
 from detective_ai.core.enums import EvidenceType
 from detective_ai.core.models import Evidence
+from detective_ai.ingestion import video_understanding
 from detective_ai.storage.database import db
 
 logger = logging.getLogger(__name__)
@@ -325,204 +326,203 @@ def analyze_frame(
         "quality": quality,
         "timestamp": timestamp,
         "frame_number": frame_number,
+        "frame_w": w,
+        "frame_h": h,
     }
 
 
-def build_video_narrative(frame_analyses: list[dict], camera_id: str) -> str:
-    """Build a consolidated narrative from all frame analyses.
+def _describe_track_movement(track, frame_w: int, frame_h: int) -> str:
+    """Describe where a tracked object started, ended, and how far it moved."""
+    if not track.positions:
+        return "position unknown"
 
-    Summarizes what was observed across all frames — people counts,
-    movement patterns (appearing/disappearing between frames), vehicle
-    activity, and notable events.
+    _, start_x, start_y = track.positions[0]
+    _, end_x, end_y = track.positions[-1]
+
+    def region(cx: float, cy: float) -> str:
+        h_pos = (
+            "left" if cx < frame_w * 0.33
+            else "center" if cx < frame_w * 0.66
+            else "right"
+        )
+        v_pos = (
+            "upper" if cy < frame_h * 0.33
+            else "middle" if cy < frame_h * 0.66
+            else "lower"
+        )
+        return "center" if (h_pos == "center" and v_pos == "middle") else f"{v_pos}-{h_pos}"
+
+    start_region = region(start_x, start_y)
+    end_region = region(end_x, end_y)
+
+    # Movement is only meaningful relative to frame size.
+    dist = ((end_x - start_x) ** 2 + (end_y - start_y) ** 2) ** 0.5
+    diagonal = (frame_w**2 + frame_h**2) ** 0.5
+    moved_ratio = dist / diagonal if diagonal else 0.0
+
+    if moved_ratio < 0.1:
+        return f"remained around the {start_region} of the frame"
+    return f"moved from the {start_region} to the {end_region} of the frame"
+
+
+def _summarize_secondary_objects(
+    frame_analyses: list[dict],
+    min_frames: int = 2,
+) -> tuple[list[str], list[str]]:
+    """Group non-person detections by class, separating reliable sightings
+    from single-frame blips that are most likely false positives.
+
+    Returns (confirmed_lines, low_confidence_lines).
+    """
+    per_class_frames: dict[str, set[int]] = {}
+    per_class_label: dict[str, str] = {}
+
+    for analysis in frame_analyses:
+        frame_number = analysis.get("frame_number", 0)
+        for det in analysis.get("detections", []):
+            if det.get("label") == "person":
+                continue
+            class_name = det.get("class_name", det.get("label", "object"))
+            per_class_frames.setdefault(class_name, set()).add(frame_number)
+            per_class_label[class_name] = det.get("label", "object")
+
+    confirmed, low_conf = [], []
+    for class_name, frames_seen in sorted(
+        per_class_frames.items(), key=lambda kv: -len(kv[1])
+    ):
+        count = len(frames_seen)
+        label = per_class_label.get(class_name, "object")
+        line = f"{class_name} ({label}): detected in {count} frame(s)"
+        if count >= min_frames:
+            confirmed.append(line)
+        else:
+            low_conf.append(line)
+    return confirmed, low_conf
+
+
+def build_video_narrative(
+    frame_analyses: list[dict],
+    camera_id: str,
+    tracks: list | None = None,
+) -> str:
+    """Build a consolidated, evidence-grade narrative from frame analyses.
+
+    Reports tracked individuals rather than raw per-frame counts (which
+    flicker with detector noise), flags weakly-supported detections, and
+    states the limits of the analysis so downstream agents do not treat
+    geometry as proof of behaviour.
     """
     if not frame_analyses:
         return f"Camera {camera_id}: No frames analyzed."
 
     total_frames = len(frame_analyses)
-    frames_with_people = [f for f in frame_analyses if f["person_count"] > 0]
-    frames_with_vehicles = [f for f in frame_analyses if f["vehicle_count"] > 0]
-    frames_with_animals = [f for f in frame_analyses if f.get("animal_count", 0) > 0]
-    max_people = max((f["person_count"] for f in frame_analyses), default=0)
-    max_vehicles = max((f["vehicle_count"] for f in frame_analyses), default=0)
+    frame_w = frame_analyses[0].get("frame_w", 640)
+    frame_h = frame_analyses[0].get("frame_h", 480)
 
-    # Compute overall motion
+    start_ts = frame_analyses[0]["timestamp"]
+    end_ts = frame_analyses[-1]["timestamp"]
+    duration_s = max(0.0, (end_ts - start_ts).total_seconds())
+
+    tracks = tracks or []
+    person_tracks = [t for t in tracks if t.label == "person"]
+
+    parts: list[str] = []
+    parts.append(
+        f"Camera {camera_id} footage analysis: {total_frames} frames examined, "
+        f"covering {start_ts.strftime('%H:%M:%S')} to {end_ts.strftime('%H:%M:%S')} "
+        f"({duration_s:.0f} seconds)."
+    )
+
+    # -- Scene conditions -------------------------------------------------
+    lighting_modes = [f.get("lighting", "unknown") for f in frame_analyses]
+    most_common_lighting = max(set(lighting_modes), key=lighting_modes.count)
     motion_scores = [f.get("motion_score", 0) for f in frame_analyses]
     avg_motion = sum(motion_scores) / len(motion_scores) if motion_scores else 0
 
-    parts = [f"Camera {camera_id} footage analysis ({total_frames} frames examined):"]
-
-    # Overall scene description
-    lighting_modes = [f.get("lighting", "unknown") for f in frame_analyses]
-    most_common_lighting = max(set(lighting_modes), key=lighting_modes.count)
-    parts.append(f"Scene lighting: {most_common_lighting}.")
-
     if avg_motion > 0.2:
-        parts.append("Overall: significant activity and movement throughout the footage.")
+        activity = "significant movement throughout"
     elif avg_motion > 0.05:
-        parts.append("Overall: moderate activity detected in the footage.")
+        activity = "moderate activity"
     else:
-        parts.append("Overall: relatively static scene with minimal movement.")
+        activity = "a largely static scene"
 
-    if not frames_with_people and not frames_with_vehicles:
-        parts.append("No people or vehicles were detected in any frame.")
-        if frames_with_animals:
-            animal_types = set()
-            for f in frames_with_animals:
-                for d in f["detections"]:
-                    if d.get("label") == "animal":
-                        animal_types.add(d.get("class_name", "animal"))
-            parts.append(f"Animals detected: {', '.join(animal_types)}")
-        return "\n".join(parts)
+    parts.append("")
+    parts.append("## Scene conditions")
+    parts.append(f"- Lighting: {most_common_lighting}")
+    parts.append(f"- Activity level: {activity}")
+    parts.append(f"- Frame resolution: {frame_w}x{frame_h}")
 
-    # ── People summary ────────────────────────────────────────────────────
-    if frames_with_people:
-        first_seen = frames_with_people[0]
-        last_seen = frames_with_people[-1]
-        parts.append(
-            f"People detected in {len(frames_with_people)} of {total_frames} frames. "
-            f"Maximum {max_people} person(s) visible at once."
-        )
-        parts.append(
-            f"First person appeared at {first_seen['timestamp'].strftime('%H:%M:%S')} "
-            f"(frame {first_seen['frame_number']})."
-        )
-        if last_seen != first_seen:
-            parts.append(
-                f"Last person visible at {last_seen['timestamp'].strftime('%H:%M:%S')} "
-                f"(frame {last_seen['frame_number']})."
-            )
+    # -- People -----------------------------------------------------------
+    parts.append("")
+    parts.append("## Movement detected (approximate — object detector only)")
+    parts.append(
+        "No visual scene understanding was available for this footage, so the "
+        "figures below come from frame-by-frame object detection alone."
+    )
 
-        # Track movement: person count changes over time
-        person_timeline = [
-            (f["timestamp"].strftime("%H:%M:%S"), f["person_count"])
+    if not person_tracks:
+        parts.append("- No people were reliably tracked in this footage.")
+    else:
+        occupancy = [
+            sum(1 for t in person_tracks if t.first_frame <= f.get("frame_number", 0) <= t.last_frame)
             for f in frame_analyses
         ]
-        changes = []
-        for i in range(1, len(person_timeline)):
-            prev_count = person_timeline[i - 1][1]
-            curr_count = person_timeline[i][1]
-            if curr_count > prev_count:
-                changes.append(
-                    f"At {person_timeline[i][0]}: {curr_count - prev_count} person(s) "
-                    f"entered the scene (total now {curr_count})"
-                )
-            elif curr_count < prev_count:
-                changes.append(
-                    f"At {person_timeline[i][0]}: {prev_count - curr_count} person(s) "
-                    f"left the scene (total now {curr_count})"
-                )
-
-        if changes:
-            parts.append("Movement timeline:")
-            for ch in changes[:15]:
-                parts.append(f"  - {ch}")
-
-        # Track where people were seen (location changes)
-        location_changes = []
-        for i in range(1, len(frames_with_people)):
-            prev_frame = frames_with_people[i - 1]
-            curr_frame = frames_with_people[i]
-
-            prev_locations = set()
-            for d in prev_frame["detections"]:
-                if d.get("label") == "person":
-                    loc = _classify_frame_region(
-                        d["bbox_x"], d["bbox_y"], d["bbox_w"], d["bbox_h"],
-                        640, 480,  # approximate — we don't have frame dimensions here
-                    )
-                    prev_locations.add(loc)
-
-            curr_locations = set()
-            for d in curr_frame["detections"]:
-                if d.get("label") == "person":
-                    loc = _classify_frame_region(
-                        d["bbox_x"], d["bbox_y"], d["bbox_w"], d["bbox_h"],
-                        640, 480,
-                    )
-                    curr_locations.add(loc)
-
-            if prev_locations and curr_locations and prev_locations != curr_locations:
-                time_str = curr_frame["timestamp"].strftime("%H:%M:%S")
-                from_locs = ", ".join(prev_locations)
-                to_locs = ", ".join(curr_locations)
-                location_changes.append(
-                    f"At {time_str}: person(s) moved from {from_locs} to {to_locs}"
-                )
-
-        if location_changes:
-            parts.append("Position tracking:")
-            for lc in location_changes[:10]:
-                parts.append(f"  - {lc}")
-
-    # ── Vehicle summary ───────────────────────────────────────────────────
-    if frames_with_vehicles:
+        typical = max(set(occupancy), key=occupancy.count) if occupancy else 0
         parts.append(
-            f"Vehicles detected in {len(frames_with_vehicles)} of {total_frames} frames "
-            f"(max {max_vehicles} at once)."
+            f"- The detector formed {len(person_tracks)} movement track(s). A track "
+            f"is NOT a person: one person is split into several tracks whenever "
+            f"they are briefly missed, turn away, or overlap something. Treat "
+            f"this as an upper bound, never as the number of people."
         )
+        parts.append(
+            f"- At any one moment the detector saw typically {typical} person(s) "
+            f"(range {min(occupancy)}-{max(occupancy)}). This is usually much "
+            f"closer to the true number of people present than the track count."
+        )
+        parts.append("")
+        for t in person_tracks:
+            present_s = max(0.0, (t.last_time - t.first_time).total_seconds())
+            movement = _describe_track_movement(t, frame_w, frame_h)
+            parts.append(
+                f"- Track {t.track_id}: first seen {t.first_time.strftime('%H:%M:%S')}, "
+                f"last seen {t.last_time.strftime('%H:%M:%S')} "
+                f"(visible ~{present_s:.0f}s across {t.hits} frames); {movement}."
+            )
 
-        # List vehicle types seen
-        vehicle_types = set()
-        for f in frames_with_vehicles:
-            for d in f["detections"]:
-                if d.get("label") == "vehicle":
-                    vehicle_types.add(d.get("class_name", "vehicle"))
-        if vehicle_types:
-            parts.append(f"Vehicle types observed: {', '.join(sorted(vehicle_types))}.")
+    # -- Other objects ----------------------------------------------------
+    confirmed_objs, weak_objs = _summarize_secondary_objects(frame_analyses)
+    if confirmed_objs or weak_objs:
+        parts.append("")
+        parts.append("## Other objects detected")
+        for line in confirmed_objs:
+            parts.append(f"- {line}")
+        for line in weak_objs:
+            parts.append(
+                f"- {line} - appeared too briefly to be reliable; "
+                f"likely a false detection and should not be treated as established fact."
+            )
 
-        # Vehicle timeline
-        vehicle_timeline = []
-        for i in range(1, len(frame_analyses)):
-            prev_v = frame_analyses[i - 1]["vehicle_count"]
-            curr_v = frame_analyses[i]["vehicle_count"]
-            if curr_v > prev_v:
-                vehicle_timeline.append(
-                    f"At {frame_analyses[i]['timestamp'].strftime('%H:%M:%S')}: "
-                    f"{curr_v - prev_v} vehicle(s) appeared"
-                )
-            elif curr_v < prev_v:
-                vehicle_timeline.append(
-                    f"At {frame_analyses[i]['timestamp'].strftime('%H:%M:%S')}: "
-                    f"{prev_v - curr_v} vehicle(s) left"
-                )
-        if vehicle_timeline:
-            parts.append("Vehicle activity:")
-            for vt in vehicle_timeline[:10]:
-                parts.append(f"  - {vt}")
-
-    # ── Animal summary ────────────────────────────────────────────────────
-    if frames_with_animals:
-        animal_types = set()
-        for f in frames_with_animals:
-            for d in f["detections"]:
-                if d.get("label") == "animal":
-                    animal_types.add(d.get("class_name", "animal"))
-        parts.append(f"Animals seen: {', '.join(sorted(animal_types))} "
-                     f"(in {len(frames_with_animals)} frames).")
-
-    # ── Key frame details ─────────────────────────────────────────────────
-    key_frames = []
-    if frames_with_people:
-        key_frames.append(frames_with_people[0])
-        peak_frame = max(frames_with_people, key=lambda f: f["person_count"])
-        if peak_frame != frames_with_people[0]:
-            key_frames.append(peak_frame)
-        if frames_with_people[-1] not in key_frames:
-            key_frames.append(frames_with_people[-1])
-    elif frames_with_vehicles:
-        key_frames.append(frames_with_vehicles[0])
-
-    # Also include high-motion frames
-    high_motion_frames = [
-        f for f in frame_analyses
-        if f.get("motion_score", 0) > 0.3 and f not in key_frames
-    ]
-    key_frames.extend(high_motion_frames[:3])
-
-    if key_frames:
-        parts.append("Key observations:")
-        for kf in key_frames:
-            parts.append(f"  - {kf['description']}")
+    # -- Limitations ------------------------------------------------------
+    parts.append("")
+    parts.append("## Limitations of this analysis")
+    parts.append(
+        "- The automated detector locates people and objects; it does NOT "
+        "identify who anyone is. Track numbers are labels only and carry no "
+        "identity. Do NOT report the track count as a number of people."
+    )
+    parts.append(
+        "- Detections can be missed or duplicated, especially when people "
+        "overlap, are partially hidden, or the scene is poorly lit."
+    )
+    parts.append(
+        "- No visual scene description was available for this footage, so "
+        "nothing is known about what people were physically doing. Do not "
+        "infer actions, intent, or wrongdoing from positions alone."
+    )
+    parts.append(
+        "- Timestamps are derived from the video start time supplied at upload "
+        "and are only as accurate as that value."
+    )
 
     return "\n".join(parts)
 
@@ -586,6 +586,37 @@ def extract_frames(
         f"(total: {total_frames}, interval: {frame_interval})"
     )
     return frames
+
+
+def _understand_video(frames, start_time):
+    """Review the whole recording with the vision model.
+
+    Returns (segment observations, reconciled synthesis). Either may be empty
+    if vision is unavailable, in which case callers fall back to the
+    detection-only narrative.
+    """
+    try:
+        if not video_understanding.is_available():
+            logger.info(
+                "Vision analysis disabled or no API key - using detection only."
+            )
+            return [], None
+
+        segments = video_understanding.analyze_segments(frames, start_time)
+        if not segments:
+            return [], None
+
+        synthesis = video_understanding.synthesize(segments)
+        if synthesis:
+            logger.info(
+                f"Video synthesis: {synthesis.get('distinct_people')} distinct "
+                f"person(s); {len(synthesis.get('timeline') or [])} timeline event(s)."
+            )
+        return segments, synthesis
+    except Exception as e:
+        logger.warning(f"Video understanding step skipped: {e}")
+        return [], None
+
 
 
 # ── Main Processing Pipeline ─────────────────────────────────────────────────
@@ -659,12 +690,46 @@ def process_video(
         f"{total_vehicles} vehicle detections across {len(frames)} frames"
     )
 
-    # ── Step 2: Build video narrative ─────────────────────────────────────
-    narrative = build_video_narrative(frame_analyses, camera_id)
+    # ── Step 2: Track people across frames ────────────────────────────────
+    # Raw per-frame counts flicker when the detector misses someone for a
+    # frame; tracking turns that noise into stable identities.
+    from detective_ai.cv.tracker import track_detections
+
+    tracks = track_detections(frame_analyses, label="person")
+    logger.info(f"Tracking: {len(tracks)} distinct person track(s) confirmed.")
+
+    # ── Step 3: Understand the video with a vision model ──────────────────
+    # The whole recording is reviewed window by window. This, not the object
+    # detector, is the authority on how many people appear: per-frame
+    # detection counts the same person again whenever tracking breaks.
+    segments, synthesis = _understand_video(frames, start_time)
+
+    # ── Step 4: Build video narrative ─────────────────────────────────────
+    if segments:
+        detector_note = (
+            f"The frame-by-frame object detector produced {len(tracks)} person "
+            f"track(s); this is an approximate machine count that splits or "
+            f"merges people when they overlap, and the figure above should be "
+            f"preferred."
+        )
+        narrative = video_understanding.render_narrative(
+            synthesis, segments, camera_id, detector_note=detector_note
+        )
+    else:
+        logger.warning(
+            "Vision analysis unavailable - falling back to detection-only narrative."
+        )
+        narrative = build_video_narrative(frame_analyses, camera_id, tracks=tracks)
     logger.info(f"Video narrative:\n{narrative}")
 
-    # ── Step 3: Build descriptions for embedding ─────────────────────────
+    # ── Step 5: Build descriptions for embedding ─────────────────────────
     descriptions = [a["description"] for a in frame_analyses]
+    segment_texts = [
+        f"[{s.start_time.strftime('%H:%M:%S')}-{s.end_time.strftime('%H:%M:%S')}] "
+        f"Camera {camera_id}: {s.description}"
+        for s in segments
+    ]
+    descriptions.extend(segment_texts)
     descriptions.append(narrative)  # also embed the narrative
 
     logger.info(f"Batch-embedding {len(descriptions)} descriptions…")
@@ -708,7 +773,44 @@ def process_video(
 
         evidence_items.append(evidence)
 
-    # ── Step 5: Store visual detections ───────────────────────────────────
+    # ── Step 6b: Store per-segment observations ───────────────────────────
+    # These carry the actual scene understanding, so they must be
+    # individually retrievable by the Q&A and investigation stages.
+    for offset, (segment, text) in enumerate(zip(segments, segment_texts)):
+        seg_evidence = Evidence(
+            type=EvidenceType.VIDEO_FRAME,
+            source=camera_id,
+            timestamp=segment.start_time,
+            confidence_score=0.85,
+            description=text,
+            metadata={
+                "camera_id": camera_id,
+                "case_id": case_id,
+                "is_video_segment": True,
+                "segment_index": segment.index,
+                "segment_start_s": segment.start_offset,
+                "segment_end_s": segment.end_offset,
+                "frames_in_segment": segment.frame_count,
+            },
+        )
+        emb_index = len(frame_analyses) + offset
+        with db.session() as session:
+            db.insert_evidence(
+                session,
+                id=seg_evidence.id,
+                type=seg_evidence.type.value,
+                source=seg_evidence.source,
+                timestamp=seg_evidence.timestamp,
+                confidence_score=seg_evidence.confidence_score,
+                description=seg_evidence.description,
+                metadata_=seg_evidence.metadata,
+                embedding=(
+                    embeddings[emb_index] if emb_index < len(embeddings) else None
+                ),
+            )
+        evidence_items.append(seg_evidence)
+
+    # ── Step 7: Store visual detections ───────────────────────────────────
     det_count = 0
     for det in all_detections:
         try:
@@ -754,6 +856,12 @@ def process_video(
             "total_persons_detected": total_persons,
             "total_vehicles_detected": total_vehicles,
             "total_detections_stored": det_count,
+            "distinct_people_tracked": len(tracks),
+            "vision_segments_analyzed": len(segments),
+            "distinct_people_observed": (
+                synthesis.get("distinct_people") if synthesis else None
+            ),
+            "analysis_mode": "vision" if segments else "detection_only",
         },
     )
     with db.session() as session:

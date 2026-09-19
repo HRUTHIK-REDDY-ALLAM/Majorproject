@@ -43,9 +43,24 @@ async def _run_investigation_background(
 
         _investigation_results[case_id] = result
 
-        # Update case status
+        from datetime import datetime
+
+        # run_investigation swallows pipeline errors and returns them in the
+        # result, so a failure here is not an exception — check for it, or the
+        # case is marked completed with nothing to show.
+        if isinstance(result, dict) and result.get("error"):
+            logger.error(f"Investigation {case_id} failed: {result['error']}")
+            with db.session() as session:
+                db.update_case(
+                    session, case_id,
+                    status="failed",
+                    phase="failed",
+                    completed_at=datetime.utcnow(),
+                    report_data=result,
+                )
+            return
+
         with db.session() as session:
-            from datetime import datetime
             db.update_case(
                 session, case_id,
                 status="completed",
@@ -60,7 +75,10 @@ async def _run_investigation_background(
         logger.error(f"Investigation {case_id} failed: {e}")
         _investigation_results[case_id] = {"error": str(e)}
         with db.session() as session:
-            db.update_case(session, case_id, status="failed", phase="failed")
+            db.update_case(
+                session, case_id, status="failed", phase="failed",
+                report_data={"error": str(e)},
+            )
 
 
 @router.post("/", response_model=StatusResponse)
@@ -133,7 +151,10 @@ async def start_investigation(
 
     with db.session() as session:
         from detective_ai.storage.database import (
-            EvidenceRow, WitnessStatementRow, AccessLogRow, VisualDetectionRow,
+            AccessLogRow,
+            EvidenceRow,
+            VisualDetectionRow,
+            WitnessStatementRow,
         )
 
         # Get all evidence rows and filter by case_id in Python (SQLite JSON compat)
@@ -143,9 +164,18 @@ async def start_investigation(
             if (r.metadata_ or {}).get("case_id") == case_id
         ]
 
-        # If no case-specific evidence, fall back to all evidence
+        # If nothing is tagged with this case, fall back only to untagged
+        # evidence — never to evidence belonging to a different case.
         if not evidence_rows:
-            evidence_rows = all_evidence
+            evidence_rows = [
+                r for r in all_evidence
+                if not (r.metadata_ or {}).get("case_id")
+            ]
+            if evidence_rows:
+                logger.warning(
+                    f"Case {case_id}: no case-tagged evidence; "
+                    f"using {len(evidence_rows)} untagged item(s)."
+                )
 
         evidence_count = len(evidence_rows)
         evidence_ids = [r.id for r in evidence_rows]
@@ -160,17 +190,35 @@ async def start_investigation(
         for vs in video_summaries:
             summaries.append(f"### Video Analysis\n{vs.description}")
 
-        # ── Frame-level observations (only frames with detections)
-        frame_evidence = [
-            r for r in evidence_rows
-            if r.type == "video_frame"
-            and not (r.metadata_ or {}).get("is_video_summary")
-            and (r.metadata_ or {}).get("person_count", 0) > 0
-        ]
-        if frame_evidence:
-            summaries.append(f"\n### Frame-Level Observations ({len(frame_evidence)} frames with people)")
-            for r in frame_evidence[:15]:
+        # ── Per-window scene observations from the vision model. These are
+        # the richest evidence available, so they come before raw frames.
+        segment_rows = sorted(
+            (r for r in evidence_rows if (r.metadata_ or {}).get("is_video_segment")),
+            key=lambda r: (r.metadata_ or {}).get("segment_index", 0),
+        )
+        if segment_rows:
+            summaries.append(
+                f"\n### Observed Scene Content ({len(segment_rows)} time windows)"
+            )
+            for r in segment_rows:
                 summaries.append(f"- {r.description}")
+
+        # ── Frame-level detections. Only useful when no scene understanding
+        # exists; otherwise they add box geometry noise to the prompt.
+        if not segment_rows:
+            frame_evidence = [
+                r for r in evidence_rows
+                if r.type == "video_frame"
+                and not (r.metadata_ or {}).get("is_video_summary")
+                and (r.metadata_ or {}).get("person_count", 0) > 0
+            ]
+            if frame_evidence:
+                summaries.append(
+                    f"\n### Frame-Level Detections "
+                    f"({len(frame_evidence)} frames with detections, showing 15)"
+                )
+                for r in frame_evidence[:15]:
+                    summaries.append(f"- {r.description}")
 
         # ── Visual detections summary
         all_detections = session.query(VisualDetectionRow).all()
@@ -181,15 +229,19 @@ async def start_investigation(
         if case_detections:
             person_dets = [d for d in case_detections if d.label == "person"]
             vehicle_dets = [d for d in case_detections if d.label == "vehicle"]
+            cameras = sorted({str(d.camera_id) for d in case_detections})
             summaries.append(
                 f"\n### Detection Statistics\n"
                 f"- Total person detections: {len(person_dets)}\n"
                 f"- Total vehicle detections: {len(vehicle_dets)}\n"
-                f"- Cameras involved: {', '.join(str(d.camera_id) for d in case_detections)}"
+                f"- Cameras involved: {', '.join(cameras)}"
             )
 
-        # ── Access logs
-        access_logs = session.query(AccessLogRow).all()
+        # ── Access logs (scoped to this case)
+        access_logs = [
+            r for r in session.query(AccessLogRow).all()
+            if (r.metadata_ or {}).get("case_id") == case_id
+        ]
         if access_logs:
             summaries.append(f"\n### Access Control Logs ({len(access_logs)} entries)")
             for log in access_logs[:10]:
@@ -198,8 +250,11 @@ async def start_investigation(
                     f"({log.action}) at {log.timestamp}"
                 )
 
-        # ── Witness statements
-        stmts = session.query(WitnessStatementRow).all()
+        # ── Witness statements (scoped to this case)
+        stmts = [
+            r for r in session.query(WitnessStatementRow).all()
+            if (r.metadata_ or {}).get("case_id") == case_id
+        ]
         if stmts:
             summaries.append(f"\n### Witness Statements ({len(stmts)} statements)")
             for s in stmts[:5]:
@@ -247,6 +302,7 @@ async def get_investigation_status(case_id: str):
         if not case:
             return StatusResponse(status="error", message=f"Case {case_id} not found")
 
+        report = case.report_data if isinstance(case.report_data, dict) else {}
         return StatusResponse(
             status="success",
             message=f"Case status: {case.status}",
@@ -256,5 +312,29 @@ async def get_investigation_status(case_id: str):
                 "status": case.status,
                 "phase": case.phase,
                 "current_round": case.current_round,
+                # Surfaced so the UI can say why a run failed instead of
+                # sending the user to the server logs.
+                "error": _friendly_error(report.get("error")),
             },
         )
+
+
+def _friendly_error(raw: str | None) -> str | None:
+    """Turn a raw pipeline error into something a user can act on."""
+    if not raw:
+        return None
+    text = str(raw)
+    lowered = text.lower()
+    if "rate_limit" in lowered or "429" in text:
+        if "per day" in lowered or "tpd" in lowered:
+            return (
+                "The AI provider's daily token limit has been reached. "
+                "The investigation cannot run until the quota resets "
+                "(usually within a few hours), or until the Groq plan is upgraded."
+            )
+        return (
+            "The AI provider's rate limit was hit. Wait a minute and try again."
+        )
+    if "authentication" in lowered or "invalid api key" in lowered or "401" in text:
+        return "The Groq API key was rejected. Check GROQ_API_KEY in your .env file."
+    return text[:400]

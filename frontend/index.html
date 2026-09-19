@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=13">
+    <link rel="stylesheet" href="/static/style.css?v=14">
 </head>
 <body>
     <!-- NAVBAR -->
@@ -43,15 +43,7 @@
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                 Ask
             </button>
-            <button class="tab" data-tab="whatif" role="tab" id="tab-whatif">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                What-If
-            </button>
         </nav>
-        <div class="navbar-status">
-            <span class="status-dot" id="apiStatus"></span>
-            <span class="status-label" id="apiStatusText">Connecting�</span>
-        </div>
     </header>
 
     <main class="main">
@@ -70,14 +62,24 @@
             <div class="card">
                 <div class="card-header">
                     <h2 class="card-title">Recent Investigations</h2>
-                    <button class="btn-ghost btn-sm" onclick="refreshDashboard()">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                        Refresh
-                    </button>
-                    <button class="btn-ghost btn-sm" style="color:#ef4444" onclick="clearHistory()" id="clearHistoryBtn">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                        Clear History
-                    </button>
+                    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+                        <label class="select-all-label" id="selectAllWrap" style="display:none">
+                            <input type="checkbox" id="selectAllCases" onclick="toggleSelectAllCases(this.checked)">
+                            Select all
+                        </label>
+                        <button class="btn-ghost btn-sm" style="color:#ef4444;display:none" id="deleteSelectedBtn" onclick="deleteSelectedCases()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                            Delete Selected (<span id="selectedCount">0</span>)
+                        </button>
+                        <button class="btn-ghost btn-sm" onclick="refreshDashboard()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                            Refresh
+                        </button>
+                        <button class="btn-ghost btn-sm" style="color:#ef4444" onclick="clearHistory()" id="clearHistoryBtn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                            Clear History
+                        </button>
+                    </div>
                 </div>
                 <div id="casesList"><div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg><p>No investigations yet</p><span>Ingest evidence then start your first investigation</span></div></div>
             </div>
@@ -321,26 +323,27 @@
         <!-- ASK QUESTIONS -->
         <section class="page" id="page-ask">
             <div class="page-header">
-                <h1>Ask About Your Investigation</h1>
-                <p class="page-subtitle">Ask natural-language questions about a completed investigation — e.g., "Where did the person go?" or "What happened at 10:32?"</p>
+                <h1>Ask About a Case</h1>
+                <p class="page-subtitle">Select a case ID, then ask questions or raise doubts about that specific investigation — e.g., "Where did the person go?" or "What happened at 10:32?"</p>
             </div>
             <div class="qa-layout">
                 <div class="card qa-sidebar">
                     <h2 class="card-title" style="margin-bottom:1rem">Select Case</h2>
                     <div id="qaCaseList">
-                        <div class="empty-state"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg><p>No cases yet</p><span>Complete an investigation first</span></div>
+                        <div class="empty-state"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg><p>No cases yet</p><span>Ingest evidence or start an investigation first</span></div>
                     </div>
                 </div>
                 <div class="card qa-main">
+                    <div class="qa-selected-case" id="qaSelectedCase" style="display:none"></div>
                     <div class="qa-chat" id="qaChat">
                         <div class="empty-state" id="qaEmpty">
                             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                            <p>Select a case and ask a question</p>
+                            <p>Select a case ID and ask a question</p>
                             <span>Try: "What happened?" or "Where did the person go?"</span>
                         </div>
                     </div>
                     <div class="qa-input-row">
-                        <input class="form-input qa-input" type="text" id="qaQuestion" placeholder="Ask a question about the investigation…" autocomplete="off" onkeydown="if(event.key==='Enter')askQuestion()">
+                        <input class="form-input qa-input" type="text" id="qaQuestion" placeholder="Ask a question about the selected case…" autocomplete="off" onkeydown="if(event.key==='Enter')askQuestion()">
                         <button class="btn-primary" id="qaAskBtn" onclick="askQuestion()">
                             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                             Ask
@@ -349,41 +352,19 @@
                 </div>
             </div>
         </section>
-
-        <!-- WHAT-IF -->
-        <section class="page" id="page-whatif">
-            <div class="page-header">
-                <h1>What-If Analysis</h1>
-                <p class="page-subtitle">Counterfactual reasoning � remove a piece of evidence and see whether the conclusion changes</p>
-            </div>
-            <div class="card">
-                <h2 class="card-title" style="margin-bottom:1.5rem">Configure Counterfactual</h2>
-                <div class="info-banner">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                    The system removes the selected evidence item, re-scores all hypotheses, and reports whether the leading conclusion changes � revealing which evidence is critical.
-                </div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label class="form-label" for="cfCaseId">Case ID</label>
-                        <input class="form-input" type="text" id="cfCaseId" placeholder="Paste a completed case ID" autocomplete="off">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="cfEvidenceId">Evidence ID to Remove</label>
-                        <input class="form-input" type="text" id="cfEvidenceId" placeholder="Evidence item to treat as false" autocomplete="off">
-                    </div>
-                </div>
-                <div class="form-actions">
-                    <button class="btn-primary" onclick="runCounterfactual()">
-                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                        Run What-If Analysis
-                    </button>
-                </div>
-            </div>
-            <div id="cfResult" style="display:none;margin-top:1.25rem"></div>
-        </section>
     </main>
 
+    <!-- CASE DETAIL MODAL -->
+    <div class="modal-overlay" id="caseDetailOverlay" style="display:none" onclick="closeCaseDetail(event)">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeCaseDetail()" aria-label="Close">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <div id="caseDetailBody"></div>
+        </div>
+    </div>
+
     <div id="toastContainer" class="toast-container" aria-live="polite"></div>
-    <script src="/static/app.js?v=13"></script>
+    <script src="/static/app.js?v=14"></script>
 </body>
 </html>

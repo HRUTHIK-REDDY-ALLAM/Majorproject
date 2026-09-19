@@ -53,6 +53,27 @@ class Settings:
         default_factory=lambda: int(os.getenv("FRAME_EXTRACTION_FPS", "2"))
     )
 
+    # ── Vision captioning (semantic scene understanding) ──────
+    vision_enabled: bool = field(
+        default_factory=lambda: os.getenv("VISION_ENABLED", "true").lower()
+        in ("1", "true", "yes")
+    )
+    vision_model: str = field(
+        default_factory=lambda: os.getenv("VISION_MODEL", "qwen/qwen3.8-27b")
+    )
+    # ── LLM video understanding (segment montages) ────────────
+    # The video is split into consecutive windows covering its full duration;
+    # each window is shown to the vision model as one labelled contact sheet.
+    video_segment_seconds: float = field(
+        default_factory=lambda: float(os.getenv("VIDEO_SEGMENT_SECONDS", "4"))
+    )
+    video_max_segments: int = field(
+        default_factory=lambda: int(os.getenv("VIDEO_MAX_SEGMENTS", "12"))
+    )
+    video_frames_per_segment: int = field(
+        default_factory=lambda: int(os.getenv("VIDEO_FRAMES_PER_SEGMENT", "6"))
+    )
+
     # ── Agent Settings ────────────────────────────────────────
     max_investigation_rounds: int = field(
         default_factory=lambda: int(os.getenv("MAX_INVESTIGATION_ROUNDS", "3"))
