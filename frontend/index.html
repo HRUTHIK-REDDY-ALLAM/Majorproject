@@ -7,22 +7,52 @@
     <meta name="description" content="AI-powered crime investigation: multi-agent forensic reasoning with hypothesis tracking, adversarial critique and evidence verification.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=14">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;family=PT+Serif:wght@400;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css?v=15">
 </head>
 <body>
-    <!-- NAVBAR -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <!-- UTILITY BAR -->
+    <div class="gov-utility-bar">
+        <div class="gov-utility-left">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="5" y="11" width="14" height="10" rx="1"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+            <span>Secure System &middot; Authorized Personnel Only &middot; All Actions Logged</span>
+        </div>
+        <div class="gov-utility-right">
+            <div class="text-size-controls" role="group" aria-label="Adjust text size">
+                <button type="button" onclick="adjustTextSize(-1)" aria-label="Decrease text size">A-</button>
+                <button type="button" onclick="adjustTextSize(0)" aria-label="Reset text size">A</button>
+                <button type="button" onclick="adjustTextSize(1)" aria-label="Increase text size">A+</button>
+            </div>
+            <button type="button" class="contrast-toggle" id="contrastToggleBtn" onclick="toggleHighContrast()" aria-label="Toggle high contrast mode">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"></circle><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor" stroke="none"></path></svg>
+                High Contrast
+            </button>
+            <span class="gov-utility-clock" id="govClock"></span>
+        </div>
+    </div>
+
+    <!-- HEADER -->
     <header class="navbar">
         <div class="navbar-brand">
             <div class="brand-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
             </div>
             <div class="brand-name">
                 <span class="brand-title">Detective AI</span>
-                <span class="brand-sub">Forensic Reasoning System</span>
+                <span class="brand-sub">Forensic Reasoning &amp; Investigation Division</span>
             </div>
         </div>
-        <nav class="navbar-tabs" role="tablist">
+        <div class="navbar-status">
+            <span class="status-dot"></span>
+            System Operational
+        </div>
+    </header>
+
+    <!-- PRIMARY NAVIGATION -->
+    <nav class="gov-nav-bar" aria-label="Primary">
+        <div class="navbar-tabs" role="tablist">
             <button class="tab active" data-tab="dashboard" role="tab" id="tab-dashboard">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect></svg>
                 Dashboard
@@ -43,10 +73,10 @@
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                 Ask
             </button>
-        </nav>
-    </header>
+        </div>
+    </nav>
 
-    <main class="main">
+    <main class="main" id="main-content">
         <!-- DASHBOARD -->
         <section class="page active" id="page-dashboard">
             <div class="page-header">
@@ -354,6 +384,34 @@
         </section>
     </main>
 
+    <!-- FOOTER -->
+    <footer class="gov-footer">
+        <div class="gov-footer-inner">
+            <div class="gov-footer-col">
+                <div class="gov-footer-title">Detective AI</div>
+                <p>Multi-agent forensic reasoning system for evidence correlation, hypothesis tracking, adversarial critique, and investigation reporting.</p>
+            </div>
+            <div class="gov-footer-col">
+                <div class="gov-footer-title">System</div>
+                <div class="gov-footer-links">
+                    <a onclick="switchTab('dashboard')">Dashboard</a>
+                    <a onclick="switchTab('ingest')">Ingest Evidence</a>
+                    <a onclick="switchTab('investigate')">Investigate</a>
+                    <a onclick="switchTab('reports')">Reports</a>
+                    <a onclick="switchTab('ask')">Ask</a>
+                </div>
+            </div>
+            <div class="gov-footer-col">
+                <div class="gov-footer-title">Notice</div>
+                <p>For authorized investigative use only. All actions performed in this system are logged. Evidence handling must follow your organization's chain-of-custody procedures.</p>
+            </div>
+        </div>
+        <div class="gov-footer-bottom">
+            <span>&copy; 2026 Detective AI &middot; Internal Investigation Platform</span>
+            <span>Multi-Agent Forensic Reasoning System</span>
+        </div>
+    </footer>
+
     <!-- CASE DETAIL MODAL -->
     <div class="modal-overlay" id="caseDetailOverlay" style="display:none" onclick="closeCaseDetail(event)">
         <div class="modal-card" onclick="event.stopPropagation()">
@@ -365,6 +423,6 @@
     </div>
 
     <div id="toastContainer" class="toast-container" aria-live="polite"></div>
-    <script src="/static/app.js?v=14"></script>
+    <script src="/static/app.js?v=15"></script>
 </body>
 </html>

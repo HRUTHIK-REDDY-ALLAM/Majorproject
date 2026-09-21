@@ -6,6 +6,30 @@
 const API = window.location.origin;
 let currentInvCaseId = null;   // tracks the currently running investigation
 
+/* ── Utility Bar: Accessibility Controls ────────────────────── */
+
+let govFontStep = 0;
+function adjustTextSize(delta) {
+    govFontStep = delta === 0 ? 0 : Math.max(-2, Math.min(4, govFontStep + delta));
+    document.documentElement.style.fontSize = (15 + govFontStep) + 'px';
+}
+
+function toggleHighContrast() {
+    const on = document.body.classList.toggle('high-contrast');
+    const btn = document.getElementById('contrastToggleBtn');
+    if (btn) btn.classList.toggle('active', on);
+}
+
+function updateGovClock() {
+    const el = document.getElementById('govClock');
+    if (!el) return;
+    const now = new Date();
+    el.textContent = now.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) +
+        ' · ' + now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
+}
+updateGovClock();
+setInterval(updateGovClock, 30000);
+
 /* ── Tab Navigation ──────────────────────────────────────────── */
 
 function switchTab(tabName) {
