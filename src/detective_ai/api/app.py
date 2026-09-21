@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from detective_ai.api.routes.ingest import router as ingest_router
 from detective_ai.api.routes.investigate import router as investigate_router
 from detective_ai.api.routes.qa import router as qa_router
-from detective_ai.api.routes.report import counterfactual_router, report_router
+from detective_ai.api.routes.report import report_router
 from detective_ai.config import settings
 from detective_ai.storage.database import db
 
@@ -43,7 +43,6 @@ app.add_middleware(
 app.include_router(ingest_router)
 app.include_router(investigate_router)
 app.include_router(report_router)
-app.include_router(counterfactual_router)
 app.include_router(qa_router)
 
 
@@ -96,6 +95,25 @@ async def list_cases():
                 for c in cases
             ]
         }
+
+
+@app.delete("/api/v1/cases/{case_id}")
+async def delete_case(case_id: str):
+    """Delete a single case and all evidence/reports filed under it."""
+    try:
+        with db.session() as session:
+            deleted = db.delete_case(session, case_id)
+        if not deleted:
+            return {"status": "error", "message": f"Case {case_id} not found"}
+
+        from detective_ai.api.routes.investigate import _investigation_results
+        _investigation_results.pop(case_id, None)
+
+        logger.info(f"Case {case_id} deleted.")
+        return {"status": "success", "message": f"Case {case_id} deleted."}
+    except Exception as e:
+        logger.error(f"Failed to delete case {case_id}: {e}")
+        return {"status": "error", "message": f"Failed to delete case: {e}"}
 
 
 @app.delete("/api/v1/clear")

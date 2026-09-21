@@ -26,14 +26,14 @@ from detective_ai.config import settings
 logger = logging.getLogger(__name__)
 
 
-def _create_llm() -> ChatGroq:
+def _create_llm(max_tokens: int = 1500) -> ChatGroq:
     """Create the Groq LLM instance with rate limiting."""
     return ChatGroq(
         model=settings.groq_model,
         temperature=0.1,
         api_key=settings.groq_api_key,
         max_retries=3,
-        max_tokens=950,
+        max_tokens=max_tokens,
     )
 
 
@@ -94,6 +94,9 @@ def build_investigation_graph() -> StateGraph:
         └──→ Reporter ──→ END
     """
     llm = _create_llm()
+    # The final report is long-form JSON; too small a budget truncates it
+    # mid-object and the parse falls back to raw text.
+    reporter_llm = _create_llm(max_tokens=3000)
 
     # Create node functions with LLM bound
     orchestrator = partial(orchestrator_node, llm=llm)
@@ -101,7 +104,7 @@ def build_investigation_graph() -> StateGraph:
     trajectory = partial(trajectory_node, llm=llm)
     critic = partial(critic_node, llm=llm)
     verifier = partial(verifier_node, llm=llm)
-    reporter = partial(reporter_node, llm=llm)
+    reporter = partial(reporter_node, llm=reporter_llm)
 
     # Build graph
     graph = StateGraph(AgentState)

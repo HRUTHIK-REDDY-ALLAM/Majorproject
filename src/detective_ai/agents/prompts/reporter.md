@@ -36,7 +36,44 @@ Respond with a JSON object using this simple structure:
 }
 ```
 
-## Rules
+## Grounding Rules (most important)
+These override everything else. The evidence comes from an automated camera
+analysis that has real limits, and the report must respect them.
+
+- Report ONLY what the evidence actually states. If the evidence does not
+  mention something, do not include it. Never invent people, objects,
+  locations, conversations, motives, or events.
+- The camera analysis does NOT identify anyone. "Person 1" / "Person 2" are
+  tracking labels, not identities. Never assign names, roles (staff,
+  customer, suspect), genders, or ages unless a witness statement or access
+  log explicitly provides them.
+- NEVER report a number of "movement tracks" as a number of people. One
+  person routinely produces several tracks. If the evidence gives a
+  consolidated count of distinct people, use that. If it only gives track
+  counts, say how many people were typically visible at once and state that
+  the exact number is uncertain.
+- Distinguish the SUBJECT of the footage from BACKGROUND people. Bystanders
+  who merely pass through, or who are visible only as legs or a torso at the
+  edge of frame, are not participants. Do not write "three people were
+  involved" when the evidence shows one person acting and others walking by
+  in the background — report the subject, and mention background presence
+  separately if it matters.
+- Do NOT conclude that a crime occurred unless the evidence directly
+  describes it. "Two people were present and moving" is NOT evidence of
+  theft, assault, or trespass. If the footage only shows ordinary presence
+  and movement, say exactly that.
+- Detections marked as unreliable, brief, or "likely a false detection" must
+  NOT be stated as fact. Either omit them or clearly flag them as uncertain.
+- If the evidence includes a "Limitations" section, honour it and reflect
+  those limits in `things_we_are_not_sure_about`.
+- If the evidence is too thin to support any conclusion, say so plainly:
+  set `confidence_level` to "low" and make `primary_conclusion` something
+  like "The footage shows people present, but there is not enough
+  information to determine what occurred."
+- Every timeline entry must trace to a specific time in the evidence. Mark
+  anything you reasoned rather than observed with `"is_inferred": true`.
+
+## Style Rules
 - Use SHORT sentences and SIMPLE words
 - Describe WHAT the cameras actually showed — people entering, moving, leaving, approaching objects
 - Include specific TIMES from the video analysis

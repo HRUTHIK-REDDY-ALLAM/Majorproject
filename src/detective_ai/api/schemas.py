@@ -41,11 +41,6 @@ class InvestigateRequest(BaseModel):
     max_rounds: int = 3
 
 
-class CounterfactualRequest(BaseModel):
-    case_id: str
-    removed_evidence_id: str
-
-
 class QARequest(BaseModel):
     question: str
 

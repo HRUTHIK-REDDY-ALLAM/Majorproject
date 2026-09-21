@@ -36,6 +36,11 @@ dependencies = [
     "scikit-learn>=1.4",
     "networkx>=3.2",
 
+    # Video decoding + MobileNet-SSD detection. Required, not optional: the
+    # ingestion pipeline imports cv2 at module level.
+    "opencv-python-headless>=4.9",
+    "pillow>=10.0",
+
     # Utilities
     "python-dotenv>=1.0",
     "aiofiles>=23.0",
@@ -44,11 +49,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Real video processing: YOLOv8 detection + MobileNetV2 ReID
+# Optional YOLOv8 detection upgrade. Without it the pipeline uses the
+# bundled MobileNet-SSD detector, which needs no extra packages.
 cv = [
     "ultralytics>=8.2.0",
-    "opencv-python-headless>=4.9",
-    "pillow>=10.0",
     "torchvision>=0.18",
 ]
 # Text embeddings for RAG over logs and witness statements

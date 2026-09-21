@@ -6,6 +6,30 @@
 const API = window.location.origin;
 let currentInvCaseId = null;   // tracks the currently running investigation
 
+/* ── Utility Bar: Accessibility Controls ────────────────────── */
+
+let govFontStep = 0;
+function adjustTextSize(delta) {
+    govFontStep = delta === 0 ? 0 : Math.max(-2, Math.min(4, govFontStep + delta));
+    document.documentElement.style.fontSize = (15 + govFontStep) + 'px';
+}
+
+function toggleHighContrast() {
+    const on = document.body.classList.toggle('high-contrast');
+    const btn = document.getElementById('contrastToggleBtn');
+    if (btn) btn.classList.toggle('active', on);
+}
+
+function updateGovClock() {
+    const el = document.getElementById('govClock');
+    if (!el) return;
+    const now = new Date();
+    el.textContent = now.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) +
+        ' · ' + now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
+}
+updateGovClock();
+setInterval(updateGovClock, 30000);
+
 /* ── Tab Navigation ──────────────────────────────────────────── */
 
 function switchTab(tabName) {
@@ -86,32 +110,20 @@ function esc(s) {
     return d.innerHTML;
 }
 
-/* ── Health Check ────────────────────────────────────────────── */
-
-async function checkHealth() {
-    const dot  = document.getElementById('apiStatus');
-    const lbl  = document.getElementById('apiStatusText');
-    try {
-        const d = await apiGet('/api/health');
-        if (d && d.status === 'healthy') {
-            dot.className = 'status-dot connected';
-            lbl.textContent = 'API Connected';
-        } else {
-            dot.className = 'status-dot disconnected';
-            lbl.textContent = 'API Error';
-        }
-    } catch {
-        dot.className = 'status-dot disconnected';
-        lbl.textContent = 'API Offline';
-    }
-}
-
 /* ── Dashboard ───────────────────────────────────────────────── */
+
+let lastLoadedCases = [];           // cache so modal/selection helpers don't re-fetch
+const selectedCaseIds = new Set();  // dashboard multi-select
 
 async function refreshDashboard() {
     const d = await apiGet('/api/v1/cases');
     if (!d || !d.cases) return;
     const cases = d.cases;
+    lastLoadedCases = cases;
+
+    // Drop selections for cases that no longer exist
+    const liveIds = new Set(cases.map(c => c.id));
+    [...selectedCaseIds].forEach(id => { if (!liveIds.has(id)) selectedCaseIds.delete(id); });
 
     document.getElementById('totalCases').textContent     = cases.length;
     document.getElementById('activeCases').textContent    = cases.filter(c => c.status === 'running').length;
@@ -119,14 +131,22 @@ async function refreshDashboard() {
     document.getElementById('failedCases').textContent    = cases.filter(c => c.status === 'failed').length;
 
     const list = document.getElementById('casesList');
+    const selectAllWrap = document.getElementById('selectAllWrap');
+
     if (!cases.length) {
         list.innerHTML = `<div class="empty-state">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
             <p>No investigations yet</p>
             <span>Ingest evidence then start your first investigation</span>
         </div>`;
+        selectAllWrap.style.display = 'none';
+        updateBulkDeleteUI();
         return;
     }
+
+    selectAllWrap.style.display = 'flex';
+    document.getElementById('selectAllCases').checked = cases.every(c => selectedCaseIds.has(c.id));
+
     list.innerHTML = cases.map(c => {
         const badgeClass = c.status === 'completed'         ? 'badge-completed'
                          : c.status === 'running'           ? 'badge-running'
@@ -138,18 +158,78 @@ async function refreshDashboard() {
         const date = c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : 'N/A';
         const canInvestigate = ['evidence_ingested','pending','failed','completed'].includes(c.status);
         const canReport = c.status === 'completed';
-        return `<div class="case-item">
-            <div style="flex:1;min-width:0" onclick="openCaseReport('${esc(c.id)}')" style="cursor:pointer">
+        const checked = selectedCaseIds.has(c.id) ? 'checked' : '';
+        const selectedClass = selectedCaseIds.has(c.id) ? ' selected' : '';
+        return `<div class="case-item${selectedClass}">
+            <input type="checkbox" class="case-checkbox" ${checked} onclick="event.stopPropagation();toggleCaseSelect('${esc(c.id)}')">
+            <div style="flex:1;min-width:0;cursor:pointer" onclick="openCaseDetail('${esc(c.id)}')">
                 <div class="case-item-title">${esc(c.title)}</div>
-                <div class="case-item-meta">${c.id.substring(0,12)}… &middot; ${date}</div>
+                <div class="case-item-meta">${esc(c.id)} &middot; ${date}</div>
             </div>
             <div style="display:flex;gap:0.5rem;align-items:center;flex-shrink:0">
-                ${canInvestigate ? `<button class="btn-ghost btn-sm" style="font-size:0.72rem;padding:0.25rem 0.6rem" onclick="investigateCase('${esc(c.id)}','${esc(c.title)}')">Investigate</button>` : ''}
-                ${canReport ? `<button class="btn-ghost btn-sm" style="font-size:0.72rem;padding:0.25rem 0.6rem" onclick="openCaseReport('${esc(c.id)}')">Report</button>` : ''}
+                ${canInvestigate ? `<button class="btn-ghost btn-sm" style="font-size:0.72rem;padding:0.25rem 0.6rem" onclick="event.stopPropagation();investigateCase('${esc(c.id)}','${esc(c.title)}')">Investigate</button>` : ''}
+                ${canReport ? `<button class="btn-ghost btn-sm" style="font-size:0.72rem;padding:0.25rem 0.6rem" onclick="event.stopPropagation();openCaseReport('${esc(c.id)}')">Report</button>` : ''}
                 <span class="badge ${badgeClass}">${badgeLabel}</span>
+                <button class="case-item-delete" title="Delete case" onclick="event.stopPropagation();deleteSingleCase('${esc(c.id)}')">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
             </div>
         </div>`;
     }).join('');
+
+    updateBulkDeleteUI();
+}
+
+function toggleCaseSelect(caseId) {
+    if (selectedCaseIds.has(caseId)) selectedCaseIds.delete(caseId);
+    else selectedCaseIds.add(caseId);
+    refreshDashboard();
+}
+
+function toggleSelectAllCases(checked) {
+    if (checked) lastLoadedCases.forEach(c => selectedCaseIds.add(c.id));
+    else selectedCaseIds.clear();
+    refreshDashboard();
+}
+
+function updateBulkDeleteUI() {
+    const btn = document.getElementById('deleteSelectedBtn');
+    const count = document.getElementById('selectedCount');
+    count.textContent = selectedCaseIds.size;
+    btn.style.display = selectedCaseIds.size > 0 ? 'inline-flex' : 'none';
+}
+
+async function deleteCaseById(caseId) {
+    const r = await fetch(`${API}/api/v1/cases/${caseId}`, { method: 'DELETE' });
+    return r.json();
+}
+
+async function deleteSingleCase(caseId) {
+    if (!confirm(`Delete this case (${caseId})? This removes its evidence and report too. This cannot be undone.`)) return;
+    const result = await deleteCaseById(caseId);
+    if (result && result.status === 'success') {
+        toast('✓ Case deleted', 'success');
+        selectedCaseIds.delete(caseId);
+        refreshDashboard();
+    } else {
+        toast(result?.message || 'Failed to delete case', 'error');
+    }
+}
+
+async function deleteSelectedCases() {
+    const ids = [...selectedCaseIds];
+    if (!ids.length) return;
+    if (!confirm(`Delete ${ids.length} selected case(s)? This removes their evidence and reports too. This cannot be undone.`)) return;
+
+    toast(`Deleting ${ids.length} case(s)…`, 'info');
+    const results = await Promise.all(ids.map(deleteCaseById));
+    const failed = results.filter(r => !r || r.status !== 'success').length;
+
+    if (failed) toast(`Deleted ${ids.length - failed} case(s), ${failed} failed`, 'error');
+    else toast(`✓ Deleted ${ids.length} case(s)`, 'success');
+
+    selectedCaseIds.clear();
+    refreshDashboard();
 }
 
 async function clearHistory() {
@@ -160,6 +240,7 @@ async function clearHistory() {
         const result = await r.json();
         if (result && result.status === 'success') {
             toast('✓ All data cleared successfully', 'success');
+            selectedCaseIds.clear();
             refreshDashboard();
         } else {
             toast(result?.message || 'Failed to clear data', 'error');
@@ -169,9 +250,64 @@ async function clearHistory() {
     }
 }
 
+/* ── Case Detail Modal ───────────────────────────────────────── */
+
+function openCaseDetail(caseId) {
+    const c = lastLoadedCases.find(x => x.id === caseId);
+    if (!c) return;
+
+    const badgeClass = c.status === 'completed'         ? 'badge-completed'
+                     : c.status === 'running'           ? 'badge-running'
+                     : c.status === 'failed'            ? 'badge-failed'
+                     : c.status === 'evidence_ingested' ? 'badge-ingested'
+                     : 'badge-pending';
+    const created   = c.created_at   ? new Date(c.created_at).toLocaleString()   : 'N/A';
+    const completed = c.completed_at ? new Date(c.completed_at).toLocaleString() : '—';
+    const canInvestigate = ['evidence_ingested','pending','failed','completed'].includes(c.status);
+    const canReport = c.status === 'completed';
+
+    document.getElementById('caseDetailBody').innerHTML = `
+        <h2 class="card-title" style="margin-bottom:0.25rem">${esc(c.title)}</h2>
+        <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.75rem">Case ID</div>
+        <div class="case-id-box">
+            <code>${esc(c.id)}</code>
+            <button class="case-id-copy" onclick="copyCaseId('${esc(c.id)}')">Copy</button>
+        </div>
+        <div class="modal-meta-row"><span>Status</span><span><span class="badge ${badgeClass}">${esc(c.status.replace(/_/g,' '))}</span></span></div>
+        <div class="modal-meta-row"><span>Phase</span><span>${esc(c.phase || '—')}</span></div>
+        <div class="modal-meta-row"><span>Round</span><span>${esc(c.current_round ?? 0)}</span></div>
+        <div class="modal-meta-row"><span>Created</span><span>${esc(created)}</span></div>
+        <div class="modal-meta-row"><span>Completed</span><span>${esc(completed)}</span></div>
+        <div class="modal-actions">
+            ${canInvestigate ? `<button class="btn-primary btn-sm" onclick="closeCaseDetail();investigateCase('${esc(c.id)}','${esc(c.title)}')">Investigate</button>` : ''}
+            ${canReport ? `<button class="btn-ghost btn-sm" onclick="closeCaseDetail();openCaseReport('${esc(c.id)}')">View Report</button>` : ''}
+            <button class="btn-ghost btn-sm" onclick="closeCaseDetail();openCaseAsk('${esc(c.id)}')">Ask About This Case</button>
+            <button class="btn-ghost btn-sm" style="color:var(--red)" onclick="closeCaseDetail();deleteSingleCase('${esc(c.id)}')">Delete</button>
+        </div>
+    `;
+    document.getElementById('caseDetailOverlay').style.display = 'flex';
+}
+
+function closeCaseDetail(event) {
+    if (event && event.target !== event.currentTarget) return;
+    document.getElementById('caseDetailOverlay').style.display = 'none';
+}
+
+function copyCaseId(caseId) {
+    navigator.clipboard?.writeText(caseId).then(
+        () => toast('Case ID copied to clipboard', 'success'),
+        () => toast('Could not copy — select and copy manually', 'error')
+    );
+}
+
 function openCaseReport(caseId) {
     switchTab('reports');
     setTimeout(() => loadReport(caseId), 100);
+}
+
+function openCaseAsk(caseId) {
+    switchTab('ask');
+    setTimeout(() => selectQACase(caseId), 100);
 }
 
 function investigateCase(caseId, title) {
@@ -401,7 +537,7 @@ async function pollStatus(caseId) {
 
         const d = await apiGet(`/api/v1/investigate/${caseId}`);
         if (!d || !d.data) return;
-        const { status, phase, current_round } = d.data;
+        const { status, phase, current_round, error } = d.data;
 
         const mappedPhase = PHASE_MAP[phase] || phase;
         if (phase !== prevPhase) {
@@ -422,9 +558,10 @@ async function pollStatus(caseId) {
             document.getElementById('launchBtn').innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Launch Investigation`;
         } else if (status === 'failed') {
             clearInterval(timer);
-            log.textContent += `> ✗ Investigation failed\n`;
+            const reason = error || 'Unknown error — check server logs.';
+            log.textContent += `> ✗ Investigation failed\n> ${reason}\n`;
             log.scrollTop = log.scrollHeight;
-            toast('Investigation failed. Check server logs.', 'error');
+            toast(reason, 'error');
             document.getElementById('launchBtn').disabled = false;
             document.getElementById('launchBtn').innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Launch Investigation`;
         }
@@ -581,28 +718,28 @@ function renderReport(report, caseId) {
     `;
 }
 
-/* ── Q&A — Ask Questions ─────────────────────────────────────── */
+/* ── Q&A — Ask About a Case ──────────────────────────────────── */
 
 let selectedQACaseId = null;
 
 async function refreshQACases() {
     const d = await apiGet('/api/v1/cases');
     if (!d || !d.cases) return;
-    const cases = d.cases.filter(c => ['completed', 'evidence_ingested', 'running', 'failed'].includes(c.status));
+    const cases = d.cases;
     const list = document.getElementById('qaCaseList');
 
     if (!cases.length) {
-        list.innerHTML = `<div class="empty-state"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg><p>No cases yet</p><span>Complete an investigation first</span></div>`;
+        list.innerHTML = `<div class="empty-state"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg><p>No cases yet</p><span>Ingest evidence or start an investigation first</span></div>`;
         return;
     }
 
     list.innerHTML = cases.map(c => {
         const sel = c.id === selectedQACaseId ? 'selected' : '';
-        const badge = c.status === 'completed' ? '<span class="badge badge-completed">Completed</span>' : `<span class="badge badge-pending">${esc(c.status)}</span>`;
+        const badge = c.status === 'completed' ? '<span class="badge badge-completed">Completed</span>' : `<span class="badge badge-pending">${esc(c.status.replace(/_/g,' '))}</span>`;
         return `<div class="report-case-item ${sel}" onclick="selectQACase('${esc(c.id)}')">
             <div>
                 <div class="report-case-item-title">${esc(c.title)}</div>
-                <div class="report-case-item-id">${c.id.substring(0,14)}…</div>
+                <div class="report-case-item-id">${esc(c.id)}</div>
             </div>
             ${badge}
         </div>`;
@@ -611,13 +748,20 @@ async function refreshQACases() {
 
 function selectQACase(caseId) {
     selectedQACaseId = caseId;
+    const c = lastLoadedCases.find(x => x.id === caseId);
+
     // Highlight selected
     document.querySelectorAll('#qaCaseList .report-case-item').forEach(el => {
         el.classList.toggle('selected', el.onclick?.toString().includes(caseId));
     });
     refreshQACases();
+
+    // Show which case ID is active, so it's always visible while asking
+    const selectedBox = document.getElementById('qaSelectedCase');
+    selectedBox.style.display = 'block';
+    selectedBox.innerHTML = `Asking about case: <strong style="color:var(--text-primary)">${esc(c?.title || caseId)}</strong> &middot; ID: ${esc(caseId)}`;
+
     // Clear chat and show ready state
-    const chat = document.getElementById('qaChat');
     const empty = document.getElementById('qaEmpty');
     if (empty) empty.style.display = 'none';
     // Don't clear existing messages — let them persist
@@ -627,7 +771,7 @@ function selectQACase(caseId) {
 async function askQuestion() {
     const question = document.getElementById('qaQuestion').value.trim();
     if (!question) { toast('Please type a question', 'error'); return; }
-    if (!selectedQACaseId) { toast('Please select a case first', 'error'); return; }
+    if (!selectedQACaseId) { toast('Please select a case ID first', 'error'); return; }
 
     const chat = document.getElementById('qaChat');
     const emptyEl = document.getElementById('qaEmpty');
@@ -679,58 +823,6 @@ async function askQuestion() {
     chat.scrollTop = chat.scrollHeight;
 }
 
-/* ── Counterfactual ──────────────────────────────────────────── */
-
-async function runCounterfactual() {
-    const caseId     = document.getElementById('cfCaseId').value.trim();
-    const evidenceId = document.getElementById('cfEvidenceId').value.trim();
-
-    if (!caseId || !evidenceId) {
-        toast('Please enter both a Case ID and Evidence ID', 'error');
-        return;
-    }
-
-    toast('Running what-if analysis…', 'info');
-    const result = await apiPost('/api/v1/counterfactual/', {
-        case_id: caseId, removed_evidence_id: evidenceId,
-    });
-
-    const panel = document.getElementById('cfResult');
-    panel.style.display = 'block';
-
-    if (result && result.status === 'success') {
-        const d = result.data;
-        const origConf = ((d.original_leading?.confidence || 0) * 100).toFixed(0);
-        const cfConf   = ((d.counterfactual_leading?.confidence || 0) * 100).toFixed(0);
-        const changed  = d.conclusion_changed;
-
-        panel.innerHTML = `
-            <div class="card">
-                <div class="report-section-title" style="margin-bottom:1rem">What-If Result</div>
-                <div class="cf-grid">
-                    <div class="cf-box">
-                        <div class="cf-box-label">Original Conclusion</div>
-                        <div class="cf-box-title">${esc(d.original_leading?.title || d.original_leading?.hypothesis || 'N/A')}</div>
-                        <div class="cf-confidence" style="color:var(--accent)">${origConf}%</div>
-                    </div>
-                    <div class="cf-box">
-                        <div class="cf-box-label">Without Evidence ${esc(evidenceId)}</div>
-                        <div class="cf-box-title">${esc(d.counterfactual_leading?.title || d.counterfactual_leading?.hypothesis || 'N/A')}</div>
-                        <div class="cf-confidence" style="color:var(--purple)">${cfConf}%</div>
-                    </div>
-                </div>
-                <div class="cf-verdict ${changed ? 'cf-changed' : 'cf-unchanged'}">
-                    ${changed
-                        ? '⚠️  Conclusion CHANGED — this evidence is critical to the investigation'
-                        : '✓  Conclusion unchanged — the investigation is robust to this evidence removal'}
-                </div>
-            </div>
-        `;
-    } else {
-        panel.innerHTML = `<div class="card"><p style="color:var(--red)">Analysis failed: ${esc(result?.message || 'Unknown error')}</p></div>`;
-    }
-}
-
 /* ── Drop Zone ───────────────────────────────────────────────── */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -760,7 +852,5 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    checkHealth();
     refreshDashboard();
-    setInterval(checkHealth, 30000);
 });

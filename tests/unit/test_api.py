@@ -64,10 +64,3 @@ class TestAPI:
         r = client.get("/api/v1/report/nonexistent")
         assert r.status_code == 200
         assert r.json()["status"] == "error"
-
-    def test_counterfactual_for_unknown_case(self, client):
-        r = client.post("/api/v1/counterfactual/", json={
-            "case_id": "nonexistent", "removed_evidence_id": "ev1",
-        })
-        assert r.status_code == 200
-        assert r.json()["status"] == "error"

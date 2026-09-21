@@ -341,6 +341,48 @@ class DatabaseManager:
             InvestigationCaseRow.created_at.desc()
         ).all()
 
+    def delete_case(self, session: Session, case_id: str) -> bool:
+        """Delete a case and everything filed under it.
+
+        Evidence, access logs and witness statements carry their case_id
+        inside a JSON metadata column (not a queryable SQL column), so the
+        filter is done in Python here — mirrors the pattern already used in
+        the investigate/qa routes for the same reason (SQLite JSON compat).
+        """
+        case = session.query(InvestigationCaseRow).filter_by(id=case_id).first()
+        if not case:
+            return False
+
+        evidence_rows = [
+            r for r in session.query(EvidenceRow).all()
+            if (r.metadata_ or {}).get("case_id") == case_id
+        ]
+        evidence_ids = [r.id for r in evidence_rows]
+        if evidence_ids:
+            session.query(VisualDetectionRow).filter(
+                VisualDetectionRow.evidence_id.in_(evidence_ids)
+            ).delete(synchronize_session=False)
+        for r in evidence_rows:
+            session.delete(r)
+
+        session.query(HypothesisRow).filter_by(case_id=case_id).delete(
+            synchronize_session=False
+        )
+        session.query(TrajectoryRow).filter_by(case_id=case_id).delete(
+            synchronize_session=False
+        )
+
+        for r in session.query(AccessLogRow).all():
+            if (r.metadata_ or {}).get("case_id") == case_id:
+                session.delete(r)
+        for r in session.query(WitnessStatementRow).all():
+            if (r.metadata_ or {}).get("case_id") == case_id:
+                session.delete(r)
+
+        session.delete(case)
+        session.flush()
+        return True
+
     # ── Access Logs ───────────────────────────────────────────
 
     def insert_access_log(self, session: Session, **kwargs: Any) -> AccessLogRow:

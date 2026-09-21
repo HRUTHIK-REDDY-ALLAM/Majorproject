@@ -1,5 +1,6 @@
 # Detective AI — production image
-# Core pipeline + RAG embeddings. Add the "cv" extra for real video ingestion.
+# Core pipeline (incl. OpenCV video ingestion) + RAG embeddings.
+# Add the "cv" extra only to upgrade detection from MobileNet-SSD to YOLOv8.
 FROM python:3.12-slim AS builder
 
 WORKDIR /build
@@ -9,6 +10,11 @@ COPY src ./src
 RUN pip install --no-cache-dir --prefix=/install ".[embeddings]"
 
 FROM python:3.12-slim
+
+# OpenCV needs glib even in its headless build.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN useradd --create-home --shell /usr/sbin/nologin detective
 WORKDIR /app
